@@ -190,7 +190,7 @@ func (deck *Deck) WindowChanged(window ActiveWindow) {
 	var match = false
 	for _, w := range deck.windows {
 		if w.Matches(window) {
-			verboseLog("windowMatch: %s:%s", w.resource, w.title)
+			verboseLog("windowMatch: %s:%s", w.resource.String(), w.title.String())
 			for i, widget := range w.widgets {
 				deck.overrideWidget(i, widget)
 			}
