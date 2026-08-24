@@ -149,6 +149,9 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 
 	case "mute":
 		return NewMicrophoneMuteWidget(bw, kc.Widget)
+
+	case "mediaPlayer":
+		return NewMediaPlayerWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID

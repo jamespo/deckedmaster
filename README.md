@@ -438,6 +438,26 @@ This widget is using "pactl" and "pacmd".
 
 You can use `pacmd list-sink-inputs` to see the current sinks. Use the value of "application.name" for appName.
 
+#### Media player
+
+A widget that displays media player information.
+
+```toml
+[keys.widget]
+  id = "mediaPlayer"
+  [keys.widget.config]
+    mode = "art" # optional
+    player_name = true # optional
+    icon_playing = "images/stop.jpg"
+    icon_paused = "images/play.jpg"
+    icon_no_player = "images/no-player.jpg"
+```
+
+The supported modes are `art` (default) and `playback status`. If `playback 
+status` has been chosen, the icons `icon_playing`, `icon_paused` or 
+`icon_no_player` will be shown depending on the playback status of the selected
+media player.
+
 ### Actions
 
 You can hook up any key with several actions. A regular keypress will trigger
@@ -520,6 +540,48 @@ pressed:
 ```toml
 [keys.action]
   device = "sleep"
+```
+
+#### Media player actions
+
+Control playback:
+
+```toml
+[keys.action]
+  media_player = "play_pause"
+```
+
+Supported playback actions are `play`, `play_pause`, `stop`, `previous` and 
+`next`.
+
+Cycle through players:
+
+```toml
+[keys.action]
+  media_player = "select+"
+```
+
+Use `select+` to select the next player to be active and `select-` to select
+the previous player.
+
+
+### Background Image
+
+You can configure each deck to display an individual wallpaper behind its
+widgets:
+
+```toml
+background = "/some/image.png"
+```
+
+### Re-using another deck's configuration
+
+If you specify a `parent` inside a deck's configuration, it will inherit all
+of the parent's settings that are not overwritten by the deck's own settings.
+This even works recursively:
+
+```toml
+parent = "another.deck"
 ```
 
 ## More Decks!
