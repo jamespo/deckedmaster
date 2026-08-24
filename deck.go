@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
+	"github.com/fsnotify/fsnotify"
 	"github.com/godbus/dbus"
 	"github.com/muesli/streamdeck"
 )
@@ -27,11 +28,12 @@ type Deck struct {
 }
 
 // LoadDeck loads a deck configuration.
-func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
-	path, err := expandPath(base, deck)
+func LoadDeck(dev *streamdeck.Device, base string, deckName string) (*Deck, error) {
+	path, err := expandPath(base, deckName)
 	if err != nil {
 		return nil, err
 	}
+	currentDeck = path
 	verbosef("Loading deck: %s", path)
 
 	dc, err := LoadConfig(path)
@@ -74,7 +76,71 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 		d.Widgets = append(d.Widgets, w)
 	}
 
+	if err := d.watchForChanges(dev, base, deckName, path); err != nil {
+		// a missing file watch is not fatal, deckmaster just won't auto-reload
+		fmt.Fprintf(os.Stderr, "Can't watch deck for changes: %s\n", err)
+	}
+
 	return &d, nil
+}
+
+// watchForChanges reloads the deck whenever its config file changes on disk.
+// The watcher shuts itself down as soon as another deck has been loaded, so
+// only the currently active deck ever triggers a reload.
+func (d *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path string) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	if err := watcher.Add(path); err != nil {
+		watcher.Close() //nolint:errcheck
+		return err
+	}
+
+	go func() {
+		defer watcher.Close() //nolint:errcheck
+
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if currentDeck != path {
+					// a different deck is active now, stop watching this one
+					return
+				}
+				// editors often replace files rather than writing in place
+				if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
+					continue
+				}
+
+				verbosef("Deck %s changed (%s), reloading...", event.Name, event.Op)
+				nd, err := LoadDeck(dev, base, deckName)
+				if err != nil {
+					verbosef("The new configuration is not valid, keeping the current one.")
+					fmt.Fprintf(os.Stderr, "Configuration Error: %s\n", err)
+					continue
+				}
+				if err := dev.Clear(); err != nil {
+					fatal(err)
+					return
+				}
+
+				deck = nd
+				deck.updateWidgets()
+				return
+
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				fmt.Fprintf(os.Stderr, "Error watching deck: %s\n", err)
+			}
+		}
+	}()
+
+	return nil
 }
 
 // loads a background image.

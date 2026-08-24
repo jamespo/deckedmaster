@@ -26,7 +26,8 @@ var (
 	// against. It's set via ldflags when building.
 	CommitSHA = ""
 
-	deck *Deck
+	deck        *Deck
+	currentDeck string
 
 	dbusConn *dbus.Conn
 	keyboard uinput.Keyboard
