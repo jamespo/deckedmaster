@@ -5,7 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"image"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -122,7 +122,7 @@ func (w *WeatherData) Fetch() {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
-	body, e := ioutil.ReadAll(resp.Body)
+	body, e := io.ReadAll(resp.Body)
 	if e != nil {
 		errorLog(e, "failed to read weather data")
 		return
@@ -149,7 +149,7 @@ func NewWeatherWidget(bw *BaseWidget, opts WidgetConfig) (*WeatherWidget, error)
 	}
 	// this needs to be called after NewButtonWidget, otherwise its value gets
 	// overwritten by it.
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Minute)
+	bw.setInterval(opts.IntervalDuration(), time.Minute)
 
 	return &WeatherWidget{
 		ButtonWidget: widget,

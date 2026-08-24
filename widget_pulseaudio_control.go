@@ -9,7 +9,7 @@ import (
 
 const (
 	regexExpression     = `index: ([0-9]+)[\s\S]*?muted: (no|yes)[\s\S]*?media.name = \"(.*?)\"[\s\S]*?application.name = \"(.*?)\"`
-	regexGroupClientId  = 1
+	regexGroupClientID  = 1
 	regexGroupMuted     = 2
 	regexGroupMediaName = 3
 	regexGroupAppName   = 4
@@ -101,7 +101,7 @@ func (w *PulseAudioControlWidget) Update() error {
 }
 
 // TriggerAction gets called when a button is pressed.
-func (w *PulseAudioControlWidget) TriggerAction(hold bool) {
+func (w *PulseAudioControlWidget) TriggerAction(_ bool) {
 	if w.mode != "mute" {
 		fmt.Fprintln(os.Stderr, "unknown mode:", w.mode)
 		return
@@ -111,17 +111,19 @@ func (w *PulseAudioControlWidget) TriggerAction(hold bool) {
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "can't toggle mute for pulseaudio app "+w.appName, err)
+		return
 	}
 
 	if sinkInputData == nil {
-		fmt.Fprintln(os.Stderr, "No running sink found for pulseaudio app "+w.appName, err)
+		fmt.Fprintln(os.Stderr, "No running sink found for pulseaudio app "+w.appName)
+		return
 	}
 
 	toggleMute(sinkInputData.index)
 }
 
 func toggleMute(sinkIndex string) {
-	err := exec.Command("sh", "-c", "pactl set-sink-input-mute "+sinkIndex+" toggle").Run()
+	err := exec.Command("pactl", "set-sink-input-mute", sinkIndex, "toggle").Run()
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "can't toggle mute for pulseaudio sink index: "+sinkIndex, err)
@@ -148,7 +150,7 @@ func getSinkInputDataForApp(appName string) (*sinkInputData, error) {
 	for match := range matches {
 		if appName == matches[match][regexGroupAppName] {
 			sinkData = &sinkInputData{}
-			sinkData.index = matches[match][regexGroupClientId]
+			sinkData.index = matches[match][regexGroupClientID]
 			sinkData.muted = yesOrNoToBool(matches[match][regexGroupMuted])
 			sinkData.title = matches[match][regexGroupMediaName]
 		}

@@ -38,7 +38,9 @@ func (p *MediaPlayer) Initialize() {
 	p.name = p.busName
 
 	var identity string
-	p.busObj.Call("org.freedesktop.DBus.Properties.Get", 0, "org.mpris.MediaPlayer2", "Identity").Store(&identity)
+	if err := p.busObj.Call("org.freedesktop.DBus.Properties.Get", 0, "org.mpris.MediaPlayer2", "Identity").Store(&identity); err != nil {
+		errorLog(err, "error while getting the identity for player %s", p.busName)
+	}
 	if len(identity) != 0 {
 		p.name = identity
 	}
@@ -68,24 +70,32 @@ func (p *MediaPlayer) Close() {
 	p.busObj.RemoveMatchSignal("org.freedesktop.DBus.Properties", "PropertiesChanged")
 }
 
+// call invokes a player method and logs a failure instead of propagating it,
+// as none of the player controls have a way to report back to the user.
+func (p *MediaPlayer) call(method string) {
+	if err := p.busObj.Call(method, 0).Store(); err != nil {
+		errorLog(err, "error while calling %s for player %s", method, p.name)
+	}
+}
+
 func (p *MediaPlayer) Stop() {
-	p.busObj.Call("org.mpris.MediaPlayer2.Player.Stop", 0).Store()
+	p.call("org.mpris.MediaPlayer2.Player.Stop")
 }
 
 func (p *MediaPlayer) Play() {
-	p.busObj.Call("org.mpris.MediaPlayer2.Player.Play", 0).Store()
+	p.call("org.mpris.MediaPlayer2.Player.Play")
 }
 
 func (p *MediaPlayer) PlayPause() {
-	p.busObj.Call("org.mpris.MediaPlayer2.Player.PlayPause", 0).Store()
+	p.call("org.mpris.MediaPlayer2.Player.PlayPause")
 }
 
 func (p *MediaPlayer) Previous() {
-	p.busObj.Call("org.mpris.MediaPlayer2.Player.Previous", 0).Store()
+	p.call("org.mpris.MediaPlayer2.Player.Previous")
 }
 
 func (p *MediaPlayer) Next() {
-	p.busObj.Call("org.mpris.MediaPlayer2.Player.Next", 0).Store()
+	p.call("org.mpris.MediaPlayer2.Player.Next")
 }
 
 func (p *MediaPlayer) Status() MediaPlayerStatus {

@@ -26,7 +26,7 @@ type TopWidget struct {
 
 // NewTopWidget returns a new TopWidget.
 func NewTopWidget(bw *BaseWidget, opts WidgetConfig) *TopWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
+	bw.setInterval(opts.IntervalDuration(), time.Second/2)
 
 	var mode string
 	_ = ConfigValue(opts.Config["mode"], &mode)

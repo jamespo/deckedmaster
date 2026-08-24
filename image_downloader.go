@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"image"
 	"net/http"
@@ -51,12 +52,16 @@ func (d *ImageDownloader) Download(url string) (image.Image, error) {
 		return cachedImage, nil
 	}
 
-	response, err := http.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close() //nolint:errcheck
+	if response.StatusCode != http.StatusOK {
 		return nil, errors.New("unable to download image from URL")
 	}
 	img, _, err := image.Decode(response.Body)

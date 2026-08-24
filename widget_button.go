@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"image"
 	"image/color"
-	"time"
 )
 
 // ButtonWidget is a simple widget displaying an icon and/or label.
@@ -20,7 +19,7 @@ type ButtonWidget struct {
 
 // NewButtonWidget returns a new ButtonWidget.
 func NewButtonWidget(bw *BaseWidget, opts WidgetConfig) (*ButtonWidget, error) {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, 0)
+	bw.setInterval(opts.IntervalDuration(), 0)
 
 	var icon, label string
 	_ = ConfigValue(opts.Config["icon"], &icon)
@@ -134,8 +133,10 @@ func (w *ButtonWidget) Draw(icon image.Image) error {
 
 func (w ButtonWidget) MarshalJSON() ([]byte, error) {
 	out := map[string]interface{}{}
-	inputJson, _ := w.BaseWidget.MarshalJSON()
-	json.Unmarshal(inputJson, &out)
+	inputJSON, _ := w.BaseWidget.MarshalJSON()
+	if err := json.Unmarshal(inputJSON, &out); err != nil {
+		return nil, err
+	}
 	out["label"] = w.label
 	out["fontsize"] = w.fontsize
 	out["color"] = w.color

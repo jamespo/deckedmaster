@@ -40,7 +40,8 @@ func (m *MediaPlayers) Close() error {
 	return m.conn.Close()
 }
 
-func (m *MediaPlayers) Run() error {
+// Run starts watching the bus for media players in the background.
+func (m *MediaPlayers) Run() {
 	go func() {
 		var names []string
 		err := m.conn.BusObject().Call("org.freedesktop.DBus.ListNames", 0).Store(&names)
@@ -62,15 +63,16 @@ func (m *MediaPlayers) Run() error {
 
 		sigCh := make(chan *dbus.Signal)
 
-		m.conn.AddMatchSignal(dbus.WithMatchMember("NameOwnerChanged"))
+		if err := m.conn.AddMatchSignal(dbus.WithMatchMember("NameOwnerChanged")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error while watching for media player changes: %s", err)
+			return
+		}
 		m.conn.Signal(sigCh)
 
 		for signal := range sigCh {
 			m.handleSignal(signal)
 		}
 	}()
-
-	return nil
 }
 
 func (m *MediaPlayers) ActivePlayer() *MediaPlayer {

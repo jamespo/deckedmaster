@@ -14,7 +14,7 @@ type CommandImageWidget struct {
 
 // NewCommandImageWidget returns a new CommandImageWidget.
 func NewCommandImageWidget(bw *BaseWidget, opts WidgetConfig) *CommandImageWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second)
+	bw.setInterval(opts.IntervalDuration(), time.Second)
 
 	var commands []string
 	_ = ConfigValue(opts.Config["command"], &commands)

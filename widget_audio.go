@@ -100,9 +100,8 @@ func (w *AudioWidget) SetSourceStream(alt bool) {
 func (w *AudioWidget) Update() error {
 	if w.IsMainStreamDefault() {
 		return w.Draw(w.icon)
-	} else {
-		return w.Draw(w.alt)
 	}
+	return w.Draw(w.alt)
 }
 
 func (w *AudioWidget) TriggerAction(hold bool) {

@@ -20,7 +20,7 @@ type CommandWidget struct {
 
 // NewCommandWidget returns a new CommandWidget.
 func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) *CommandWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second)
+	bw.setInterval(opts.IntervalDuration(), time.Second)
 
 	var commands, fonts, frameReps []string
 	_ = ConfigValue(opts.Config["command"], &commands)

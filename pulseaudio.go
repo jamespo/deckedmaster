@@ -98,7 +98,7 @@ func (pa *PulseAudio) Start() {
 		}
 	}
 	for {
-		_ = <-pulseAudioUpdates
+		<-pulseAudioUpdates
 		serverInfo, e := pa.client.ServerInfo()
 		if e != nil {
 			errorLog(e, "failed to get PulseAudio server info")
@@ -138,17 +138,15 @@ func (pa *PulseAudio) Start() {
 func (pa *PulseAudio) Muted(isSinkStream bool) bool {
 	if isSinkStream {
 		return pa.currentSink.Muted
-	} else {
-		return pa.currentSource.Muted
 	}
+	return pa.currentSource.Muted
 }
 
 func (pa *PulseAudio) ToggleMute(isSinkStream bool) error {
 	if isSinkStream {
 		return pa.client.SetSinkMute(!pa.currentSink.Muted, pa.CurrentSinkName())
-	} else {
-		return pa.client.SetSourceMute(!pa.currentSource.Muted, pa.CurrentSourceName())
 	}
+	return pa.client.SetSourceMute(!pa.currentSource.Muted, pa.CurrentSourceName())
 }
 
 func (pa *PulseAudio) CurrentSinkName() string {

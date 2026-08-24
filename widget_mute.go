@@ -45,9 +45,8 @@ func NewMuteWidget(bw *BaseWidget, opts WidgetConfig) (*MuteWidget, error) {
 func (w *MuteWidget) Update() error {
 	if pa.Muted(w.playback) {
 		return w.Draw(w.muted)
-	} else {
-		return w.Draw(w.icon)
 	}
+	return w.Draw(w.icon)
 }
 
 func (w *MuteWidget) TriggerAction(hold bool) {

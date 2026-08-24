@@ -28,7 +28,9 @@ type WindowChannel struct {
 	channel chan ActiveWindow
 }
 
-func (w *WindowChannel) ActiveWindowChanged(class, title, id string) *dbus.Error {
+// ActiveWindowChanged is exported on the session bus; the *dbus.Error return
+// value is part of the signature godbus requires, even though it is never set.
+func (w *WindowChannel) ActiveWindowChanged(class, title, id string) *dbus.Error { //nolint:unparam
 	w.channel <- ActiveWindow{class, title, id}
 	return nil
 }

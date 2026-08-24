@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/jfreymuth/pulse/proto"
 	pulse "github.com/jfreymuth/pulse/proto"
 )
 
@@ -32,7 +31,7 @@ func NewPulseAudioClient() (*PulseAudioClient, error) {
 	err = client.Request(&pulse.SetClientName{Props: props}, &pulse.SetClientNameReply{})
 
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
@@ -50,7 +49,7 @@ func (c *PulseAudioClient) Close() error {
 // DefaultSource returns the default source.
 func (c *PulseAudioClient) DefaultSource() (*Source, error) {
 	var source Source
-	err := c.client.Request(&proto.GetSourceInfo{SourceIndex: proto.Undefined}, &source)
+	err := c.client.Request(&pulse.GetSourceInfo{SourceIndex: pulse.Undefined}, &source)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (c *PulseAudioClient) DefaultSource() (*Source, error) {
 // SetSourceMute set the mute state of a source.
 func (c *PulseAudioClient) SetSourceMute(source *Source, mute bool) error {
 	verboseLog("Setting pulseaudio source %s mute to %t", source.SourceName, mute)
-	err := c.client.Request(&proto.SetSourceMute{SourceIndex: source.SourceIndex, Mute: mute}, nil)
+	err := c.client.Request(&pulse.SetSourceMute{SourceIndex: source.SourceIndex, Mute: mute}, nil)
 	if err != nil {
 		return err
 	}

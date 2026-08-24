@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -17,33 +18,44 @@ const (
 	baseCGroupPath    = "/sys/fs/cgroup"
 )
 
-var (
-	childProcessCGroup = createNewCGroup("deckmaster.scope")
-)
+// childProcessCGroup resolves the control group child processes are spawned in.
+// It is resolved on first use rather than at startup, and returns an empty path
+// when this system does not let us create one (no cgroup v2, insufficient
+// permissions, containers, ...), in which case children simply stay in our own
+// control group.
+var childProcessCGroup = sync.OnceValue(func() string {
+	return createNewCGroup("deckmaster.scope")
+})
 
-func runningCGroup() string {
+func runningCGroup() (string, error) {
 	s, err := os.ReadFile(processCGroupFile)
 	if err != nil {
-		errorLogF("Unable to read the control group for the current process")
-		panic(err)
+		return "", err
 	}
 	split := strings.Split(string(s), ":")
 	cgroup := split[len(split)-1]
-	return strings.TrimSpace(cgroup)
+	return strings.TrimSpace(cgroup), nil
 }
 
 func createNewCGroup(name string) string {
-	cgroupParent := filepath.Dir(runningCGroup())
-	cgroupPath := path.Join(baseCGroupPath, cgroupParent, name)
+	current, err := runningCGroup()
+	if err != nil {
+		errorLog(err, "Unable to read the control group for the current process")
+		return ""
+	}
+	cgroupPath := path.Join(baseCGroupPath, filepath.Dir(current), name)
 	if err := os.MkdirAll(cgroupPath, DirMode); err != nil {
-		errorLogF("Unable to create new control group for child processes\n\t", cgroupPath)
-		panic(err)
+		errorLog(err, "Unable to create control group %s for child processes", cgroupPath)
+		return ""
 	}
 	verboseLog("Using control group to spawn child processes\n\t%s", cgroupPath)
 	return cgroupPath
 }
 
 func moveProcessToCGroup(pid int, cgroup string) error {
+	if cgroup == "" {
+		return nil
+	}
 	cgroupFile := path.Join(cgroup, cgroupProcsFile)
 	fileContents := fmt.Sprintf("%d\n", pid)
 	return os.WriteFile(cgroupFile, []byte(fileContents), FileMode)
@@ -75,7 +87,7 @@ func executeCommand(cmd string) error {
 		return err
 	}
 	pid := command.Process.Pid
-	if err := moveProcessToCGroup(pid, childProcessCGroup); err != nil {
+	if err := moveProcessToCGroup(pid, childProcessCGroup()); err != nil {
 		errorLog(err, "Unable to move child process %d to cgroup", pid)
 	}
 	return command.Process.Release()

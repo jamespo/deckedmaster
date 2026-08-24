@@ -55,6 +55,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -186,7 +187,6 @@ func (e apiError) MarshalJSON() ([]byte, error) {
 		Details: e.Description,
 		Object:  e.Object,
 	})
-
 }
 
 func restGetDevice(c *gin.Context) {
@@ -228,7 +228,10 @@ func restPutDevice(c *gin.Context) {
 		Brightness: brightnessConfig,
 		Asleep:     deck.dev.Asleep(),
 	}
-	c.BindJSON(&content)
+	if err := c.BindJSON(&content); err != nil {
+		restAbortWithError(err, c)
+		return
+	}
 	var err error
 	newSleepTimeout := sleepTimeout
 	// Adjust sleep timeout.
@@ -257,15 +260,24 @@ func restPutDevice(c *gin.Context) {
 
 	// Toggle wake state.
 	if content.Asleep && !deck.dev.Asleep() {
-		deck.dev.Sleep()
+		err = deck.dev.Sleep()
 	} else if !content.Asleep && deck.dev.Asleep() {
-		deck.dev.Wake()
+		err = deck.dev.Wake()
+	}
+	if err != nil {
+		restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+		return
 	}
 	// Adjust brightnessConfig.
-	if *content.Brightness > 100 {
-		*content.Brightness = 100
+	brightness := *content.Brightness
+	if brightness > 100 {
+		brightness = 100
+		*content.Brightness = brightness
 	}
-	deck.dev.SetBrightness(uint8(*content.Brightness))
+	if err := deck.dev.SetBrightness(uint8(brightness)); err != nil {
+		restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+		return
+	}
 
 	restGetDevice(c)
 }
@@ -297,7 +309,7 @@ func restPutDeck(c *gin.Context) {
 	// 200: DeckState
 	// 500: ApiError
 	if deck.file == "" {
-		restAbortWithErrorStatus(http.StatusInternalServerError, errors.New("The current deck was not loaded from a file"), c)
+		restAbortWithErrorStatus(http.StatusInternalServerError, errors.New("the current deck was not loaded from a file"), c)
 		return
 	}
 	newDeck, err := LoadDeck(deck.dev, ".", deck.file)
@@ -327,18 +339,17 @@ func restGetDeckBackground(c *gin.Context) {
 	// 500: ApiError
 	switch c.Request.Header.Get("Accepts") {
 	case "image/png":
-		c.Status(200)
-		png.Encode(c.Writer, deck.background)
-		break
+		c.Status(http.StatusOK)
+		if err := png.Encode(c.Writer, deck.background); err != nil {
+			restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+		}
 
 	case "application/json":
 		c.JSON(http.StatusOK, deck.background)
-		break
 
 	default:
 		c.Status(http.StatusUnsupportedMediaType)
 	}
-	return
 }
 
 func restPutDeckBackground(c *gin.Context) {
@@ -481,7 +492,7 @@ func restGetWidget(c *gin.Context) {
 		return
 	}
 	for w := range deck.Widgets {
-		if int(w.Key()) == index {
+		if w.Key() == index {
 			c.JSON(http.StatusOK, apiConvertWidget(w))
 			return
 		}
@@ -517,27 +528,26 @@ func restGetWidgetButtonIcon(c *gin.Context) {
 		return
 	}
 	for w := range deck.Widgets {
-		if int(w.Key()) == index {
+		if w.Key() == index {
 			button, ok := w.(*ButtonWidget)
-			if ok {
-				switch c.Request.Header.Get("Accept") {
-				case "image/png":
-					c.Status(200)
-					png.Encode(c.Writer, button.icon)
-					break
-
-				case "application/json":
-					c.JSON(http.StatusOK, button.icon)
-					break
-
-				default:
-					c.Status(http.StatusUnsupportedMediaType)
-				}
-				return
-			} else {
+			if !ok {
 				c.AbortWithStatusJSON(http.StatusBadRequest, apiError{Message: "Widget is not a button with icon"})
 				return
 			}
+			switch c.Request.Header.Get("Accept") {
+			case "image/png":
+				c.Status(http.StatusOK)
+				if err := png.Encode(c.Writer, button.icon); err != nil {
+					restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+				}
+
+			case "application/json":
+				c.JSON(http.StatusOK, button.icon)
+
+			default:
+				c.Status(http.StatusUnsupportedMediaType)
+			}
+			return
 		}
 	}
 	c.AbortWithStatusJSON(http.StatusInternalServerError, apiError{Message: "Widget not found."})
@@ -567,37 +577,35 @@ func restPutWidgetButtonIcon(c *gin.Context) {
 		return
 	}
 	for w := range deck.Widgets {
-		if int(w.Key()) == index {
+		if w.Key() == index {
 			button, ok := w.(*ButtonWidget)
-			if ok {
-				upload, err := c.FormFile("icon")
-				if err != nil {
-					restAbortWithErrorStatus(http.StatusBadRequest, err, c)
-					return
-				}
-				file, err := upload.Open()
-				if err != nil {
-					restAbortWithErrorStatus(http.StatusBadRequest, err, c)
-					return
-				}
-				image, _, err := image.Decode(file)
-				if err != nil {
-					restAbortWithErrorStatus(http.StatusBadRequest, err, c)
-					return
-				}
-
-				if err != nil {
-					restAbortWithErrorStatus(http.StatusBadRequest, err, c)
-					return
-				}
-				button.SetImage(image)
-				button.Update()
-				c.JSON(http.StatusOK, nil)
-				return
-			} else {
+			if !ok {
 				c.AbortWithStatusJSON(http.StatusBadRequest, apiError{Message: "Widget is not a button with icon"})
 				return
 			}
+			upload, err := c.FormFile("icon")
+			if err != nil {
+				restAbortWithErrorStatus(http.StatusBadRequest, err, c)
+				return
+			}
+			file, err := upload.Open()
+			if err != nil {
+				restAbortWithErrorStatus(http.StatusBadRequest, err, c)
+				return
+			}
+			defer file.Close() //nolint:errcheck
+			icon, _, err := image.Decode(file)
+			if err != nil {
+				restAbortWithErrorStatus(http.StatusBadRequest, err, c)
+				return
+			}
+			button.SetImage(icon)
+			if err := button.Update(); err != nil {
+				restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+				return
+			}
+			c.JSON(http.StatusOK, nil)
+			return
 		}
 	}
 	c.AbortWithStatusJSON(http.StatusInternalServerError, apiError{Message: "Widget not found."})
@@ -619,36 +627,35 @@ func restGetKeyConfig(c *gin.Context) {
 	// 200: KeyConfig
 	// 404: ApiError
 	// 500: ApiError
-	indexParam, err := apiGetKeyIndex(c.Param("id"))
+	index, err := apiGetKeyIndex(c.Param("id"))
 	if err != nil {
 		restAbortWithErrorStatus(http.StatusNotFound, err, c)
 		return
 	}
-	index := uint8(indexParam)
 	for _, config := range deck.config.Keys {
 		if config.Index == index {
 			c.JSON(http.StatusOK, config)
 			return
 		}
 	}
-	restAbortWithErrorStatus(http.StatusInternalServerError, errors.New("Widget not found."), c)
+	restAbortWithErrorStatus(http.StatusInternalServerError, errors.New("widget not found"), c)
 }
 
 // Transforms a key index string or key name to a widget index.
-func apiGetKeyIndex(id string) (int, error) {
+func apiGetKeyIndex(id string) (uint8, error) {
 	indexParam, err := strconv.Atoi(id)
 	if err != nil {
 		for _, k := range deck.config.Keys {
 			if k.Name != "" && k.Name == id {
-				return int(k.Index), nil
+				return k.Index, nil
 			}
 		}
-		return -1, fmt.Errorf("Key name '%s' not found.", id)
+		return 0, fmt.Errorf("key name '%s' not found", id)
 	}
-	if indexParam < 0 || indexParam > len(deck.widgets)-1 {
-		return -1, fmt.Errorf("Key id '%s' is out of range.", id)
+	if indexParam < 0 || indexParam >= len(deck.widgets) || indexParam > math.MaxUint8 {
+		return 0, fmt.Errorf("key id '%s' is out of range", id)
 	}
-	return indexParam, nil
+	return uint8(indexParam), nil
 }
 
 func restPutKeyConfig(c *gin.Context) {
@@ -700,12 +707,11 @@ func restPostWidgetConfig(c *gin.Context) {
 }
 
 func restHandleWidgetConfigRequest(c *gin.Context, merge bool) {
-	indexParam, err := apiGetKeyIndex(c.Param("id"))
+	index, err := apiGetKeyIndex(c.Param("id"))
 	if err != nil {
 		restAbortWithErrorStatus(http.StatusNotFound, err, c)
 		return
 	}
-	index := uint8(indexParam)
 	// Default to a new empty widget configuration.
 	config := KeyConfig{Index: index}
 	names := map[string]uint8{}
@@ -724,16 +730,19 @@ func restHandleWidgetConfigRequest(c *gin.Context, merge bool) {
 	// Merge the request config into a copy of the original config.
 	configCopy, _ := json.Marshal(config)
 	var newConfig KeyConfig
-	json.Unmarshal(configCopy, &newConfig)
+	if err := json.Unmarshal(configCopy, &newConfig); err != nil {
+		restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+		return
+	}
 	err = c.BindJSON(&newConfig)
 	if err != nil || newConfig.Index != index {
-		restAbortWithError(errors.New("The index can not be changed."), c)
+		restAbortWithError(errors.New("the index can not be changed"), c)
 		return
 	}
 	if newConfig.Name != "" {
 		i, ok := names[newConfig.Name]
 		if ok && i != newConfig.Index {
-			restAbortWithError(fmt.Errorf("The name '%s' is already taken.", newConfig.Name), c)
+			restAbortWithError(fmt.Errorf("the name '%s' is already taken", newConfig.Name), c)
 			return
 		}
 	}
@@ -749,11 +758,15 @@ func restHandleWidgetConfigRequest(c *gin.Context, merge bool) {
 	} else {
 		deck.config.Keys[configIndex] = newConfig
 	}
-	deck.widgets[uint8(index)] = w
+	deck.widgets[index] = w
 	// Reload the widget.
 	updateMutex.Lock()
-	w.Update()
+	err = w.Update()
 	updateMutex.Unlock()
+	if err != nil {
+		restAbortWithErrorStatus(http.StatusInternalServerError, err, c)
+		return
+	}
 	c.JSON(http.StatusOK, newConfig)
 }
 
@@ -772,12 +785,11 @@ func restDeleteKeyConfig(c *gin.Context) {
 	// Responses:
 	// 	204:
 	// 	404: ApiError
-	indexParam, err := apiGetKeyIndex(c.Param("id"))
+	index, err := apiGetKeyIndex(c.Param("id"))
 	if err != nil {
 		restAbortWithErrorStatus(http.StatusNotFound, err, c)
 		return
 	}
-	index := uint8(indexParam)
 	configIndex := -1
 	// Map to configs.
 	for i, c := range deck.config.Keys {
@@ -796,7 +808,7 @@ func restDeleteKeyConfig(c *gin.Context) {
 	if configIndex != -1 {
 		deck.config.Keys = append(deck.config.Keys[:configIndex], deck.config.Keys[configIndex+1:]...)
 	}
-	deck.widgets[uint8(index)] = w
+	deck.widgets[index] = w
 	c.JSON(http.StatusNoContent, nil)
 }
 
@@ -855,13 +867,15 @@ func restAbortWithErrorStatus(code int, err error, c *gin.Context) {
 }
 
 // Initialize the REST API.
-func initRestApi(listenAddress string, trustedProxies string, enabledDocs bool) *nbhttp.Server {
+func initRestAPI(listenAddress string, trustedProxies string, enabledDocs bool) *nbhttp.Server {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
 	if len(trustedProxies) > 0 {
-		router.SetTrustedProxies(strings.Split(trustedProxies, ","))
+		if err := router.SetTrustedProxies(strings.Split(trustedProxies, ",")); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// Configure the CORS middleware.

@@ -85,22 +85,22 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 
 // applyConfig applies deck-level configuration (currently the background
 // image). Split out so the REST API can re-apply a config to a live deck.
-func (d *Deck) applyConfig(dc DeckConfig) error {
-	d.config = dc
+func (deck *Deck) applyConfig(dc DeckConfig) error {
+	deck.config = dc
 	if dc.Background == "" {
 		return nil
 	}
 
-	bgPath, err := expandPath(filepath.Dir(d.file), dc.Background)
+	bgPath, err := expandPath(filepath.Dir(deck.file), dc.Background)
 	if err != nil {
 		return err
 	}
-	return d.loadBackground(d.dev, bgPath)
+	return deck.loadBackground(bgPath)
 }
 
 // GetDevice returns the streamdeck device this deck is bound to.
-func (d *Deck) GetDevice() *streamdeck.Device {
-	return d.dev
+func (deck *Deck) GetDevice() *streamdeck.Device {
+	return deck.dev
 }
 
 // LoadWidgets (re)builds every widget of a deck from its current config. The
@@ -156,7 +156,7 @@ func (deck *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path s
 		return err
 	}
 	if err := watcher.Add(path); err != nil {
-		watcher.Close() //nolint:errcheck
+		_ = watcher.Close()
 		return err
 	}
 
@@ -252,7 +252,7 @@ func (ww *WindowWidgets) Matches(window ActiveWindow) bool {
 }
 
 // loads a background image.
-func (deck *Deck) loadBackground(dev *streamdeck.Device, bg string) error {
+func (deck *Deck) loadBackground(bg string) error {
 	f, err := os.Open(bg)
 	if err != nil {
 		return err
@@ -542,15 +542,15 @@ func (deck *Deck) updateWidgets() {
 	updateMutex.Unlock()
 }
 
-func (d *Deck) replaceBackground(image image.Image) error {
+func (deck *Deck) replaceBackground(image image.Image) error {
 	updateMutex.Lock()
-	err := d.validateBackground(image)
+	err := deck.validateBackground(image)
 	if err != nil {
 		updateMutex.Unlock()
 		return err
 	}
-	d.background = image
-	for w := range d.Widgets {
+	deck.background = image
+	for w := range deck.Widgets {
 		w.reloadBackground()
 		// fmt.Println("Repaint", w.Key())
 		if err := w.Update(); err != nil {
@@ -582,12 +582,12 @@ func (deck *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 		if v == math.MinInt64 {
 			v = 10
 		}
-		v = int64(*brightnessConfig) - v
+		v = int64(currentBrightness()) - v
 	case '+': // brightness+[n]:
 		if v == math.MinInt64 {
 			v = 10
 		}
-		v = int64(*brightnessConfig) + v
+		v = int64(currentBrightness()) + v
 	default:
 		v = math.MinInt64
 	}
@@ -599,12 +599,11 @@ func (deck *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 
 	if v < 1 {
 		v = 1
-	} else if v > 100 {
-		v = 100
 	}
-	if err := dev.SetBrightness(uint8(v)); err != nil {
+	brightness := clampBrightness(v)
+	if err := dev.SetBrightness(brightness); err != nil {
 		fatal(err)
 	}
 
-	*brightnessConfig = uint(v)
+	*brightnessConfig = uint(brightness)
 }

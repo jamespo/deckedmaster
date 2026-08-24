@@ -169,7 +169,7 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 		return NewTimerWidget(bw, kc.Widget), nil
 
 	case "spotify":
-		return NewSpotifyWidget(bw, kc.Widget)
+		return NewSpotifyWidget(bw, kc.Widget), nil
 
 	case "pulseAudioControl":
 		return NewPulseAudioControlWidget(bw, kc.Widget)

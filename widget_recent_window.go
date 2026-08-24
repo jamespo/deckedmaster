@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"image"
+	"math"
 )
 
 // RecentWindowWidget is a widget displaying a recently activated window.
@@ -19,6 +21,9 @@ func NewRecentWindowWidget(bw *BaseWidget, opts WidgetConfig) (*RecentWindowWidg
 	var window int64
 	if err := ConfigValue(opts.Config["window"], &window); err != nil {
 		return nil, err
+	}
+	if window < 0 || window > math.MaxUint8 {
+		return nil, fmt.Errorf("window index %d is out of range", window)
 	}
 	var showTitle bool
 	_ = ConfigValue(opts.Config["showTitle"], &showTitle)

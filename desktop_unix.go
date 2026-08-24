@@ -160,6 +160,7 @@ func (x *Xorg) CloseWindow(w Window) error {
 }
 
 func (x *Xorg) atom(aname string) *xproto.InternAtomReply {
+	//nolint:gosec // atom names are compile-time constants, never near 64KiB
 	a, err := xproto.InternAtom(x.conn, true, uint16(len(aname)), aname).Reply()
 	if err != nil {
 		fatal(err)

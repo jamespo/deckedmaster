@@ -27,7 +27,7 @@ type TempWidget struct {
 
 // NewTempWidget returns a new TempWidget.
 func NewTempWidget(bw *BaseWidget, opts WidgetConfig) *TempWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second*5)
+	bw.setInterval(opts.IntervalDuration(), time.Second*5)
 
 	var label, sensorKey string
 	_ = ConfigValue(opts.Config["label"], &label)

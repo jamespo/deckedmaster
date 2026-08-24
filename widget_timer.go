@@ -55,7 +55,7 @@ func (d *TimerData) Clear() {
 
 // NewTimerWidget returns a new TimerWidget.
 func NewTimerWidget(bw *BaseWidget, opts WidgetConfig) *TimerWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
+	bw.setInterval(opts.IntervalDuration(), time.Second/2)
 
 	var times []time.Duration
 	var formats, fonts, frameReps []string

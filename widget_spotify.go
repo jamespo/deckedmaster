@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/nfnt/resize"
 	"image"
 	"image/color"
 	"image/draw"
 	"net/http"
 	"strings"
-	"time"
+
+	"github.com/nfnt/resize"
 )
 
 // SpotifyWidget is a widget that displays album art and current track position
@@ -22,8 +23,8 @@ type SpotifyWidget struct {
 }
 
 // NewSpotifyWidget returns a new SpotifyWidget.
-func NewSpotifyWidget(bw *BaseWidget, opts WidgetConfig) (*SpotifyWidget, error) {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, 0)
+func NewSpotifyWidget(bw *BaseWidget, opts WidgetConfig) *SpotifyWidget {
+	bw.setInterval(opts.IntervalDuration(), 0)
 
 	var fontsize float64
 	_ = ConfigValue(opts.Config["fontsize"], &fontsize)
@@ -43,7 +44,7 @@ func NewSpotifyWidget(bw *BaseWidget, opts WidgetConfig) (*SpotifyWidget, error)
 		flatten:    flatten,
 	}
 
-	return w, nil
+	return w
 }
 
 // Parse a string like (00:00/00:00) and return the first set of numbers 00:00
@@ -77,13 +78,17 @@ func (w *SpotifyWidget) LoadImage(path string) (image.Image, error) {
 // LoadImageFromURL loads an image from a URL
 func (w *SpotifyWidget) LoadImageFromURL(URL string) (image.Image, error) {
 	//Get the response bytes from the url
-	response, err := http.Get(URL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close() //nolint:errcheck
 
-	if response.StatusCode != 200 {
+	if response.StatusCode != http.StatusOK {
 		return nil, errors.New("received non 200 response code")
 	}
 
@@ -92,7 +97,7 @@ func (w *SpotifyWidget) LoadImageFromURL(URL string) (image.Image, error) {
 		return nil, err
 	}
 
-	return img, err
+	return img, nil
 }
 
 // Update renders the widget.
@@ -108,7 +113,9 @@ func (w *SpotifyWidget) Update() error {
 		if err != nil {
 			return err
 		}
-		drawImage(img, icon, size, image.Pt(0, 0))
+		if err := drawImage(img, icon, size, image.Pt(0, 0)); err != nil {
+			return err
+		}
 		return w.render(w.dev, img)
 	}
 
@@ -139,23 +146,16 @@ func (w *SpotifyWidget) Update() error {
 	}
 
 	if icon != nil {
-
 		icon = resize.Resize(uint(size), uint(size), icon, resize.Bilinear)
 		draw.Draw(img, img.Bounds(), icon, image.Pt(0, margin), draw.Over)
 
-		if err != nil {
-			return err
-		}
-
-		if status == string("▮▮") {
+		if status == "▮▮" {
 			pauseIcon, err := loadImage("assets/spotify/pause.png")
-			pauseIcon = resize.Resize(uint(size), uint(size), pauseIcon, resize.Bilinear)
-			draw.Draw(img, img.Bounds(), pauseIcon, image.Pt(0, margin), draw.Over)
-
 			if err != nil {
 				return err
 			}
-
+			pauseIcon = resize.Resize(uint(size), uint(size), pauseIcon, resize.Bilinear)
+			draw.Draw(img, img.Bounds(), pauseIcon, image.Pt(0, margin), draw.Over)
 		}
 
 		bounds.Min.Y += iconsize + margin

@@ -14,15 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: ^1
+          go-version-file: go.mod
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
-          # Optional: golangci-lint command line arguments.
-          #args:
+          version: v2.13.1
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           only-new-issues: true

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 )
 
 type MediaPlayerWidget struct {
@@ -30,7 +29,7 @@ func NewMediaPlayerWidget(bw *BaseWidget, opts WidgetConfig) (*MediaPlayerWidget
 		return nil, err
 	}
 
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, 100)
+	bw.setInterval(opts.IntervalDuration(), 100)
 
 	var mode, iconPlaying, iconPaused, iconNoPlayer string
 	var playerName bool

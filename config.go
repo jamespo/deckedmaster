@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -50,6 +51,19 @@ type WidgetConfig struct {
 	Interval uint `toml:"interval,omitempty" json:"interval,omitempty"`
 	// The widget specific configuration.
 	Config map[string]interface{} `toml:"config,omitempty" json:"config,omitempty"`
+}
+
+// IntervalDuration returns the configured update interval as a duration,
+// capping values too large to be represented.
+func (c WidgetConfig) IntervalDuration() time.Duration {
+	const maxInterval = uint64(math.MaxInt64 / int64(time.Millisecond))
+
+	interval := uint64(c.Interval)
+	if interval > maxInterval {
+		interval = maxInterval
+	}
+
+	return time.Duration(interval) * time.Millisecond //nolint:gosec // bounded by maxInterval above
 }
 
 // KeyConfig holds the entire configuration for a single key.

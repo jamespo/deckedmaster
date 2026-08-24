@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"io/ioutil"
 	"os"
 
 	"github.com/flopp/go-findfont"
@@ -75,7 +74,7 @@ func loadFont(name string) (*truetype.Font, error) {
 		return nil, err
 	}
 
-	ttf, err := ioutil.ReadFile(fontPath)
+	ttf, err := os.ReadFile(fontPath)
 	if err != nil {
 		return nil, err
 	}

@@ -85,7 +85,7 @@ func (w *MicrophoneMuteWidget) Update() error {
 }
 
 // TriggerAction gets called when a button is pressed.
-func (w *MicrophoneMuteWidget) TriggerAction(hold bool) {
+func (w *MicrophoneMuteWidget) TriggerAction(_ bool) {
 	source, err := w.pulse.DefaultSource()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can't get pulseaudio default source: %s\n", err)

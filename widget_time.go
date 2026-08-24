@@ -19,7 +19,7 @@ type TimeWidget struct {
 
 // NewTimeWidget returns a new TimeWidget.
 func NewTimeWidget(bw *BaseWidget, opts WidgetConfig) *TimeWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
+	bw.setInterval(opts.IntervalDuration(), time.Second/2)
 
 	var formats, fonts, frameReps []string
 	_ = ConfigValue(opts.Config["format"], &formats)

@@ -34,7 +34,7 @@ var (
 	shutdown    = make(chan error)
 	updateMutex sync.Mutex
 	// Would not need this if there was a streamdeck.GetSleepTimeout()
-	sleepTimeout time.Duration = 0
+	sleepTimeout time.Duration
 	// Would not need this if there was a streamdeck.GetFadeDuration()
 	fadeDuration time.Duration = 250 * time.Millisecond
 
@@ -76,6 +76,26 @@ func errorLogF(format string, args ...interface{}) {
 
 func fatal(e error) {
 	go func() { shutdown <- e }()
+}
+
+// clampBrightness limits a brightness level to the 0-100 range the device accepts.
+func clampBrightness(brightness int64) uint8 {
+	if brightness < 0 {
+		return 0
+	}
+	if brightness > 100 {
+		return 100
+	}
+	return uint8(brightness)
+}
+
+// currentBrightness returns the configured brightness as a valid device level.
+func currentBrightness() uint8 {
+	brightness := *brightnessConfig
+	if brightness > 100 {
+		return 100
+	}
+	return uint8(brightness)
 }
 
 func verboseLog(format string, a ...interface{}) {
@@ -284,7 +304,7 @@ func initDevice() (*streamdeck.Device, error) {
 	if *brightnessConfig > 100 {
 		*brightnessConfig = 100
 	}
-	if err = dev.SetBrightness(uint8(*brightnessConfig)); err != nil {
+	if err = dev.SetBrightness(currentBrightness()); err != nil {
 		return &dev, err
 	}
 
@@ -343,9 +363,7 @@ func run() error {
 	if e != nil {
 		return fmt.Errorf("failed to initialize media players: %w", e)
 	}
-	if e = mediaPlayers.Run(); e != nil {
-		return fmt.Errorf("failed to run media players: %w", e)
-	}
+	mediaPlayers.Run()
 
 	// initialize image downloader
 	imageDownloader = NewImageDownloader(1 * time.Hour)
@@ -367,7 +385,7 @@ func run() error {
 
 	// Initialize REST server.
 	if len(*restListen) > 0 {
-		server := initRestApi(*restListen, *restTrustedProxies, *restDocs)
+		server := initRestAPI(*restListen, *restTrustedProxies, *restDocs)
 		if e = server.Start(); e != nil {
 			errorLog(e, "could not start REST server")
 		} else {
