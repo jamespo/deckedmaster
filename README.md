@@ -148,6 +148,19 @@ widgets:
 background = "/some/image.png"
 ```
 
+A key can override the deck background with a solid color:
+
+```toml
+[[keys]]
+  index = 1
+  backgroundColor = "#ff0000" # Sets the background to solid red.
+```
+
+The color is by default rendered on top of any deck background image. If that
+image has transparency, you can also specify `backgroundMode = "blend"` to have
+the background color show through only the transparent image regions. This solid
+or blended background is static; the widget is then rendered on top of it.
+
 ### Re-using another deck's configuration
 
 If you specify a `parent` inside a deck's configuration, it will inherit all
