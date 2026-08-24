@@ -136,6 +136,9 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 
 	case "spotify":
 		return NewSpotifyWidget(bw, kc.Widget)
+
+	case "pulseAudioControl":
+		return NewPulseAudioControlWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID

@@ -403,6 +403,23 @@ This widget depends on the [spotifycli](https://github.com/pwittchen/spotify-cli
 The widget will display the album along with the track position of the current song. The album art is loaded directly 
 from the url provided by the spotify via the spotifycli cli.  
 
+#### Pulseaudio Control
+
+A widget that can controls a specific pulseaudio input sink (like Rhythmbox, Firefox etc.). 
+
+```toml
+[keys.widget]
+  id = "pulseAudioControl"
+  [keys.widget.config]
+    appName = "Application name" # Like "Rhythmbox"
+    mode = "mute" # Only mute is supported at the moment.
+    showTitle = true # optional
+```
+
+This widget is using "pactl" and "pacmd".
+
+You can use `pacmd list-sink-inputs` to see the current sinks. Use the value of "application.name" for appName.
+
 ### Actions
 
 You can hook up any key with several actions. A regular keypress will trigger
