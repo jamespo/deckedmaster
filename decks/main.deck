@@ -5,6 +5,7 @@
     [keys.widget.config]
       mode = "cpu"
       fillColor = "#d497de"
+      borderColor = "#ffffff"
 
 [[keys]]
   index = 1
@@ -124,7 +125,7 @@
 [[keys]]
   index = 14
   [keys.widget]
-    id = "recentWindow"
+    id = "microphoneMute"
     [keys.widget.config]
-      window = 5
-      showTitle = true
+      icon = "assets/microphone-rec.png"
+      iconMute = "assets/microphone-mute.png"

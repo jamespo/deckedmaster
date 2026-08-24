@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
-	"os"
+	"math"
 )
 
 // RecentWindowWidget is a widget displaying a recently activated window.
@@ -21,6 +21,9 @@ func NewRecentWindowWidget(bw *BaseWidget, opts WidgetConfig) (*RecentWindowWidg
 	var window int64
 	if err := ConfigValue(opts.Config["window"], &window); err != nil {
 		return nil, err
+	}
+	if window < 0 || window > math.MaxUint8 {
+		return nil, fmt.Errorf("window index %d is out of range", window)
 	}
 	var showTitle bool
 	_ = ConfigValue(opts.Config["showTitle"], &showTitle)
@@ -76,7 +79,7 @@ func (w *RecentWindowWidget) Update() error {
 // TriggerAction gets called when a button is pressed.
 func (w *RecentWindowWidget) TriggerAction(hold bool) {
 	if xorg == nil {
-		fmt.Fprintln(os.Stderr, "xorg support is disabled!")
+		errorLogF("xorg support is disabled!")
 		return
 	}
 

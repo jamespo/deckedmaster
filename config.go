@@ -5,57 +5,106 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
-	"io/ioutil"
+	"math"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
-	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 // DBusConfig describes a dbus action.
 type DBusConfig struct {
-	Object string `toml:"object,omitempty"`
-	Path   string `toml:"path,omitempty"`
-	Method string `toml:"method,omitempty"`
-	Value  string `toml:"value,omitempty"`
+	Object string `toml:"object,omitempty" json:"object,omitempty"`
+	Path   string `toml:"path,omitempty" json:"path,omitempty"`
+	Method string `toml:"method,omitempty" json:"method,omitempty"`
+	Value  string `toml:"value,omitempty" json:"value,omitempty"`
 }
 
 // ActionConfig describes an action that can be triggered.
 type ActionConfig struct {
-	Deck    string     `toml:"deck,omitempty"`
-	Keycode string     `toml:"keycode,omitempty"`
-	Exec    string     `toml:"exec,omitempty"`
-	Paste   string     `toml:"paste,omitempty"`
-	Device  string     `toml:"device,omitempty"`
-	DBus    DBusConfig `toml:"dbus,omitempty"`
+	// The name of a deck file to load.
+	Deck string `toml:"deck,omitempty" json:"deck,omitempty"`
+	// A keycode to send.
+	Keycode string `toml:"keycode,omitempty" json:"keycode,omitempty"`
+	// A command to execute.
+	Exec string `toml:"exec,omitempty" json:"exec,omitempty"`
+	// A string to paste.
+	Paste string `toml:"paste,omitempty" json:"paste,omitempty"`
+	// A device command execute, like "sleep".
+	Device string `toml:"device,omitempty" json:"device,omitempty"`
+	// A DBus command to execute.
+	DBus *DBusConfig `toml:"dbus,omitempty" json:"dbus,omitempty"`
+	// A media player command to execute.
+	MediaPlayer string `toml:"media_player,omitempty" json:"media_player,omitempty"`
 }
 
 // WidgetConfig describes configuration data for widgets.
 type WidgetConfig struct {
-	ID       string                 `toml:"id,omitempty"`
-	Interval uint                   `toml:"interval,omitempty"`
-	Config   map[string]interface{} `toml:"config,omitempty"`
+	// The type of widget to use for the key.
+	ID string `toml:"id,omitempty" json:"id,omitempty"`
+	// The widget's update interval in human readable format like "1s".
+	Interval uint `toml:"interval,omitempty" json:"interval,omitempty"`
+	// The widget specific configuration.
+	Config map[string]interface{} `toml:"config,omitempty" json:"config,omitempty"`
+}
+
+// IntervalDuration returns the configured update interval as a duration,
+// capping values too large to be represented.
+func (c WidgetConfig) IntervalDuration() time.Duration {
+	const maxInterval = uint64(math.MaxInt64 / int64(time.Millisecond))
+
+	interval := uint64(c.Interval)
+	if interval > maxInterval {
+		interval = maxInterval
+	}
+
+	return time.Duration(interval) * time.Millisecond //nolint:gosec // bounded by maxInterval above
 }
 
 // KeyConfig holds the entire configuration for a single key.
 type KeyConfig struct {
-	Index      uint8         `toml:"index"`
-	Widget     WidgetConfig  `toml:"widget"`
-	Action     *ActionConfig `toml:"action,omitempty"`
-	ActionHold *ActionConfig `toml:"action_hold,omitempty"`
+	// They key index to configure.
+	Index uint8 `toml:"index" json:"index"`
+	// An identifying name for the key, unique per deck.
+	Name string `toml:"name,omitempty" json:"name,omitempty"`
+	// The widget configuration.
+	Widget WidgetConfig `toml:"widget" json:"widget"`
+	// An action to perform when the key is pressed and released.
+	Action *ActionConfig `toml:"action,omitempty" json:"action,omitempty"`
+	// An action to perform when the key is held.
+	ActionHold *ActionConfig `toml:"action_hold,omitempty" json:"action_hold,omitempty"`
+	// A solid background color for the key.
+	BackgroundColor string `toml:"backgroundColor,omitempty" json:"backgroundColor,omitempty"`
+	// How the background color is combined with the deck background ("blend").
+	BackgroundMode string `toml:"backgroundMode,omitempty" json:"backgroundMode,omitempty"`
 }
 
 // Keys is a slice of keys.
 type Keys []KeyConfig
 
+type WindowConfig struct {
+	Resource string `toml:"resource,omitempty" json:"resource,omitempty"`
+	Title    string `toml:"title,omitempty" json:"title,omitempty"`
+	Keys     Keys   `toml:"keys" json:"keys"`
+}
+
 // DeckConfig is the central configuration struct.
+//
+// swagger:model
 type DeckConfig struct {
-	Background string `toml:"background,omitempty"`
-	Parent     string `toml:"parent,omitempty"`
-	Keys       Keys   `toml:"keys"`
+	// The deck background image.
+	Background string `toml:"background,omitempty" json:"background,omitempty"`
+	// A parent deck the configuration overrides.
+	Parent string `toml:"parent,omitempty" json:"parent,omitempty"`
+	// Per-window widget overrides.
+	Windows []WindowConfig `toml:"window,omitempty" json:"window,omitempty"`
+	// Configuration for individual keys
+	Keys Keys `toml:"keys" json:"keys"`
 }
 
 // MergeDeckConfig merges key configuration from multiple configs.
@@ -77,7 +126,9 @@ func MergeDeckConfig(base, parent *DeckConfig) DeckConfig {
 	if background == "" {
 		background = parent.Background
 	}
-	return DeckConfig{background, base.Parent, keys}
+
+	windows := append(base.Windows, parent.Windows...)
+	return DeckConfig{background, base.Parent, windows, keys}
 }
 
 // LoadConfigFromFile loads a DeckConfig from a file while checking for circular
@@ -98,12 +149,14 @@ func LoadConfigFromFile(base, path string, files []string) (DeckConfig, error) {
 		}
 	}
 
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		return config, err
 	}
 
-	_, err = toml.Decode(string(file), &config)
+	if _, err = toml.Decode(string(file), &config); err != nil {
+		return config, err
+	}
 	if config.Parent != "" {
 		parent, err := LoadConfigFromFile(base, config.Parent, append(files, filename))
 		if err != nil {
@@ -133,7 +186,7 @@ func (c DeckConfig) Save(filename string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(filename, b.Bytes(), 0600)
+	return os.WriteFile(filename, b.Bytes(), 0600)
 }
 
 // ConfigValue tries to convert an interface{} to the desired type.
@@ -194,6 +247,14 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		default:
 			return fmt.Errorf("unhandled type %+v for color.Color conversion", reflect.TypeOf(vt))
 		}
+	case *time.Duration:
+		switch vt := v.(type) {
+		case string:
+			x, _ := time.ParseDuration(vt)
+			*d = x
+		default:
+			return fmt.Errorf("unhandled type %+v for time.Duration conversion", reflect.TypeOf(vt))
+		}
 
 	case *[]string:
 		switch vt := v.(type) {
@@ -215,6 +276,19 @@ func ConfigValue(v interface{}, dst interface{}) error {
 			*d = clrs
 		default:
 			return fmt.Errorf("unhandled type %+v for []color.Color conversion", reflect.TypeOf(vt))
+		}
+	case *[]time.Duration:
+		switch vt := v.(type) {
+		case string:
+			durationsString := strings.Split(vt, ";")
+			var durations []time.Duration
+			for _, durationString := range durationsString {
+				duration, _ := time.ParseDuration(durationString)
+				durations = append(durations, duration)
+			}
+			*d = durations
+		default:
+			return fmt.Errorf("unhandled type %+v for []time.Duration conversion", reflect.TypeOf(vt))
 		}
 
 	default:

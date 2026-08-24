@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,7 +21,7 @@ import (
 
 var (
 	// DefaultColor is the standard color for text rendering.
-	DefaultColor = color.RGBA{255, 255, 255, 255}
+	DefaultColor = color.White
 )
 
 // Widget is an interface implemented by all available widgets.
@@ -25,9 +29,11 @@ type Widget interface {
 	Key() uint8
 	RequiresUpdate() bool
 	Update() error
+	reloadBackground()
 	Action() *ActionConfig
 	ActionHold() *ActionConfig
 	TriggerAction(hold bool)
+	Close() error
 }
 
 // BaseWidget provides common functionality required by all widgets.
@@ -62,6 +68,12 @@ func (w *BaseWidget) TriggerAction(_ bool) {
 	// just a stub
 }
 
+// Close gets called when a button is unloaded.
+func (w *BaseWidget) Close() error {
+	// just a stub
+	return nil
+}
+
 // RequiresUpdate returns true when the widget wants to be repainted.
 func (w *BaseWidget) RequiresUpdate() bool {
 	if !w.lastUpdate.IsZero() && // initial paint done
@@ -76,6 +88,22 @@ func (w *BaseWidget) RequiresUpdate() bool {
 // Update renders the widget.
 func (w *BaseWidget) Update() error {
 	return w.render(w.dev, nil)
+}
+
+func (w BaseWidget) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Key        uint8         `json:"key"`
+		Interval   time.Duration `json:"interval,omitempty"`
+		LastUpdate time.Time     `json:"lastUpdate"`
+	}{
+		Interval:   w.interval,
+		LastUpdate: w.lastUpdate,
+	})
+}
+
+func (w *BaseWidget) reloadBackground() {
+	w.background = deck.backgroundForKey(deck.dev, w.key)
+	w.lastUpdate = time.Time{}
 }
 
 // NewBaseWidget returns a new BaseWidget.
@@ -98,6 +126,12 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 	case "button":
 		return NewButtonWidget(bw, kc.Widget)
 
+	case "audio":
+		return NewAudioWidget(bw, kc.Widget)
+
+	case "mute":
+		return NewMuteWidget(bw, kc.Widget)
+
 	case "clock":
 		kc.Widget.Config = make(map[string]interface{})
 		kc.Widget.Config["format"] = "%H;%i;%s"
@@ -119,15 +153,38 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 	case "top":
 		return NewTopWidget(bw, kc.Widget), nil
 
+	case "temp":
+		return NewTempWidget(bw, kc.Widget), nil
+
 	case "command":
 		return NewCommandWidget(bw, kc.Widget), nil
 
+	case "imageCommand":
+		return NewCommandImageWidget(bw, kc.Widget), nil
+
 	case "weather":
 		return NewWeatherWidget(bw, kc.Widget)
+
+	case "timer":
+		return NewTimerWidget(bw, kc.Widget), nil
+
+	case "spotify":
+		return NewSpotifyWidget(bw, kc.Widget), nil
+
+	case "pulseAudioControl":
+		return NewPulseAudioControlWidget(bw, kc.Widget)
+
+	// PR #147 claims the generic "mute" id for sink (output) muting, so the
+	// microphone/source mute widget from PR #87 is registered under its own id.
+	case "microphoneMute":
+		return NewMicrophoneMuteWidget(bw, kc.Widget)
+
+	case "mediaPlayer":
+		return NewMediaPlayerWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID
-	return nil, fmt.Errorf("Unknown widget with ID %s", kc.Widget.ID)
+	return nil, fmt.Errorf("unknown widget with ID %s", kc.Widget.ID)
 }
 
 // renders the widget including its background image.
@@ -163,6 +220,9 @@ func loadImage(path string) (image.Image, error) {
 	defer f.Close() //nolint:errcheck
 
 	icon, _, err := image.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("image=%s, %w", filepath.Base(path), err)
+	}
 	return icon, err
 }
 
@@ -216,7 +276,7 @@ func drawString(img *image.RGBA, bounds image.Rectangle, ttf *truetype.Font, tex
 	c := ftContext(img, ttf, dpi, fontsize)
 
 	if fontsize <= 0 {
-		// pick biggest available height to fit the string
+		// pick the biggest available height to fit the string
 		fontsize, _ = maxPointSize(text,
 			ftContext(img, ttf, dpi, fontsize), dpi,
 			bounds.Dx(), bounds.Dy())
@@ -238,8 +298,8 @@ func drawString(img *image.RGBA, bounds image.Rectangle, ttf *truetype.Font, tex
 	}
 
 	c.SetSrc(image.NewUniform(color))
-	if _, err := c.DrawString(text, freetype.Pt(pt.X, pt.Y)); err != nil {
-		fmt.Fprintf(os.Stderr, "Can't render string: %s\n", err)
+	if _, e := c.DrawString(text, freetype.Pt(pt.X, pt.Y)); e != nil {
+		errorLog(e, "failed to render string")
 		return
 	}
 }

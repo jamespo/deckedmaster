@@ -8,36 +8,39 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 // TopWidget is a widget displaying the current CPU/MEM usage as a bar.
 type TopWidget struct {
 	*BaseWidget
 
-	mode      string
-	color     color.Color
-	fillColor color.Color
+	mode        string
+	color       color.Color
+	fillColor   color.Color
+	borderColor color.Color
 
 	lastValue float64
 }
 
 // NewTopWidget returns a new TopWidget.
 func NewTopWidget(bw *BaseWidget, opts WidgetConfig) *TopWidget {
-	bw.setInterval(time.Duration(opts.Interval)*time.Millisecond, time.Second/2)
+	bw.setInterval(opts.IntervalDuration(), time.Second/2)
 
 	var mode string
 	_ = ConfigValue(opts.Config["mode"], &mode)
-	var color, fillColor color.Color
+	var color, fillColor, borderColor color.Color
 	_ = ConfigValue(opts.Config["color"], &color)
 	_ = ConfigValue(opts.Config["fillColor"], &fillColor)
+	_ = ConfigValue(opts.Config["borderColor"], &borderColor)
 
 	return &TopWidget{
-		BaseWidget: bw,
-		mode:       mode,
-		color:      color,
-		fillColor:  fillColor,
+		BaseWidget:  bw,
+		mode:        mode,
+		color:       color,
+		fillColor:   fillColor,
+		borderColor: borderColor,
 	}
 }
 
@@ -79,6 +82,9 @@ func (w *TopWidget) Update() error {
 	if w.fillColor == nil {
 		w.fillColor = color.RGBA{166, 155, 182, 255}
 	}
+	if w.borderColor == nil {
+		w.borderColor = DefaultColor
+	}
 
 	size := int(w.dev.Pixels)
 	margin := size / 18
@@ -86,7 +92,7 @@ func (w *TopWidget) Update() error {
 
 	draw.Draw(img,
 		image.Rect(12, 6, size-12, size-18),
-		&image.Uniform{w.color},
+		&image.Uniform{w.borderColor},
 		image.Point{}, draw.Src)
 	draw.Draw(img,
 		image.Rect(13, 7, size-14, size-20),
