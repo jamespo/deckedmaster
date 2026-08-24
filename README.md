@@ -384,6 +384,25 @@ For the full explanation on how these sensor keys are created on all platforms,
 check the `SensorTemperatures*` functions in the [gopsutil](https://github.com/shirou/gopsutil/blob/master/host/host.go)
 package.
 
+#### Spotify
+
+A widget that displays the current album and track position.
+
+```toml
+[keys.widget]
+  id = "spotify"
+  interval = 500
+  [keys.widget.config]
+    fontsize = 8
+    color = "#ffffff" 
+   
+```
+
+This widget depends on the [spotifycli](https://github.com/pwittchen/spotify-cli-linux) application for Linux.
+
+The widget will display the album along with the track position of the current song. The album art is loaded directly 
+from the url provided by the spotify via the spotifycli cli.  
+
 ### Actions
 
 You can hook up any key with several actions. A regular keypress will trigger

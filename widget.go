@@ -133,6 +133,9 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 
 	case "timer":
 		return NewTimerWidget(bw, kc.Widget), nil
+
+	case "spotify":
+		return NewSpotifyWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID
