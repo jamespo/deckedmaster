@@ -76,7 +76,7 @@ func (w *MediaPlayerWidget) Update() error {
 				w.currentPlaybackStatus = "No player"
 				fresh = false
 
-				if err := w.LoadImage(w.iconNoPlayer); err != nil {
+				if err := w.LoadImage(&w.icon, w.iconNoPlayer); err != nil {
 					return err
 				}
 			}
@@ -87,11 +87,11 @@ func (w *MediaPlayerWidget) Update() error {
 				fresh = false
 
 				if w.currentPlaybackStatus == "Playing" {
-					if err := w.LoadImage(w.iconPlaying); err != nil {
+					if err := w.LoadImage(&w.icon, w.iconPlaying); err != nil {
 						return err
 					}
 				} else {
-					if err := w.LoadImage(w.iconPaused); err != nil {
+					if err := w.LoadImage(&w.icon, w.iconPaused); err != nil {
 						return err
 					}
 				}
@@ -124,7 +124,7 @@ func (w *MediaPlayerWidget) SetImageURL(url string) {
 		w.SetImage(nil)
 	} else {
 		if strings.HasPrefix(url, "file://") {
-			err := w.LoadImage(strings.TrimPrefix(url, "file://"))
+			err := w.LoadImage(&w.icon, strings.TrimPrefix(url, "file://"))
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error while opening image: %s: %s", url, err)
 			}

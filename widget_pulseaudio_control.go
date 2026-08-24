@@ -92,7 +92,7 @@ func (w *PulseAudioControlWidget) Update() error {
 		label = w.appName
 	}
 
-	if err := w.LoadImage(icon); err != nil {
+	if err := w.LoadImage(&w.icon, icon); err != nil {
 		return err
 	}
 

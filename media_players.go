@@ -123,12 +123,12 @@ func (m *MediaPlayers) handleSignal(signal *dbus.Signal) {
 			player.onPropertiesChanged(properties)
 		}
 	default:
-		verbosef("Unknown signal: %+v\n", signal)
+		verboseLog("Unknown signal: %+v\n", signal)
 	}
 }
 
 func (m *MediaPlayers) addPlayer(busName string, ownerName string) {
-	verbosef("Adding new player %s owner %s", busName, ownerName)
+	verboseLog("Adding new player %s owner %s", busName, ownerName)
 
 	player := NewMediaPlayer(m.conn, m.eventCh, busName, ownerName)
 	player.Initialize()
@@ -142,7 +142,7 @@ func (m *MediaPlayers) addPlayer(busName string, ownerName string) {
 }
 
 func (m *MediaPlayers) removePlayer(busName string, ownerName string) {
-	verbosef("Removing player %s owner %s", busName, ownerName)
+	verboseLog("Removing player %s owner %s", busName, ownerName)
 
 	player, ok := m.players[ownerName]
 
@@ -164,7 +164,7 @@ func (m *MediaPlayers) removePlayer(busName string, ownerName string) {
 }
 
 func (m *MediaPlayers) changePlayerOwner(busName string, oldOwnerName string, newOwnerName string) {
-	verbosef("Changing owner of player %s from %s to %s", busName, oldOwnerName, newOwnerName)
+	verboseLog("Changing owner of player %s from %s to %s", busName, oldOwnerName, newOwnerName)
 
 	player, ok := m.players[oldOwnerName]
 

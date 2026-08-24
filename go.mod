@@ -1,24 +1,27 @@
 module github.com/muesli/deckmaster
 
-go 1.17
+go 1.24.0
+
+toolchain go1.24.4
 
 require (
-	github.com/BurntSushi/toml v1.3.2
+	github.com/BurntSushi/toml v1.6.0
 	github.com/atotto/clipboard v0.1.4
-	github.com/bendahl/uinput v1.6.2
+	github.com/bendahl/uinput v1.7.0
 	github.com/flopp/go-findfont v0.1.0
-	github.com/fsnotify/fsnotify v1.6.0
-	github.com/godbus/dbus/v5 v5.1.0
+	github.com/fsnotify/fsnotify v1.10.1
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
-	github.com/jezek/xgb v1.1.0
-	github.com/jezek/xgbutil v0.0.0-20210302171758-530099784e66
+	github.com/jezek/xgb v1.3.0
+	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/jfreymuth/pulse v0.1.0
-	github.com/lucasb-eyer/go-colorful v1.2.0
+	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/muesli/streamdeck v0.4.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/shirou/gopsutil/v3 v3.23.9
-	golang.org/x/image v0.11.0
+	github.com/tvidal-net/pulseaudio v0.0.0-20250620201345-9831624d251c
+	golang.org/x/image v0.35.0
 )
 
 require (
@@ -32,5 +35,5 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
 )
