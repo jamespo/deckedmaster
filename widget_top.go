@@ -21,7 +21,7 @@ type TopWidget struct {
 	fillColor   color.Color
 	borderColor color.Color
 
-	lastValue   float64
+	lastValue float64
 }
 
 // NewTopWidget returns a new TopWidget.

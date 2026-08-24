@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"image"
 	"image/color"
 	"time"
@@ -129,4 +130,15 @@ func (w *ButtonWidget) Draw(icon image.Image) error {
 	}
 
 	return w.render(w.dev, img)
+}
+
+func (w ButtonWidget) MarshalJSON() ([]byte, error) {
+	out := map[string]interface{}{}
+	inputJson, _ := w.BaseWidget.MarshalJSON()
+	json.Unmarshal(inputJson, &out)
+	out["label"] = w.label
+	out["fontsize"] = w.fontsize
+	out["color"] = w.color
+	out["flatten"] = w.flatten
+	return json.Marshal(out)
 }

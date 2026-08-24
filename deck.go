@@ -32,6 +32,7 @@ type WindowWidgets struct {
 // Deck is a set of widgets.
 type Deck struct {
 	file       string
+	dev        *streamdeck.Device
 	config     DeckConfig
 	background image.Image
 	windows    []WindowWidgets
@@ -57,37 +58,15 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 		overrides: make(map[uint8]*Widget),
 		widgets:   make(map[uint8]Widget),
 		file:      path,
+		dev:       dev,
 		config:    dc,
 	}
-	if dc.Background != "" {
-		bgPath, err := expandPath(filepath.Dir(path), dc.Background)
-		if err != nil {
-			return nil, err
-		}
-		if err := d.loadBackground(dev, bgPath); err != nil {
-			return nil, err
-		}
+	if err := d.applyConfig(dc); err != nil {
+		return nil, err
 	}
 
-	keyMap := map[uint8]KeyConfig{}
-	for _, k := range dc.Keys {
-		keyMap[k.Index] = k
-	}
-
-	for i := uint8(0); i < dev.Keys; i++ {
-		bg := d.backgroundForKey(dev, i)
-
-		var w Widget
-		if k, found := keyMap[i]; found {
-			w, err = NewWidget(dev, filepath.Dir(path), k, bg)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			w = NewBaseWidget(dev, filepath.Dir(path), i, nil, nil, bg)
-		}
-
-		d.widgets[i] = w
+	if err := LoadWidgets(&d); err != nil {
+		return nil, err
 	}
 
 	for _, w := range dc.Windows {
@@ -102,6 +81,70 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 	}
 
 	return &d, nil
+}
+
+// applyConfig applies deck-level configuration (currently the background
+// image). Split out so the REST API can re-apply a config to a live deck.
+func (d *Deck) applyConfig(dc DeckConfig) error {
+	d.config = dc
+	if dc.Background == "" {
+		return nil
+	}
+
+	bgPath, err := expandPath(filepath.Dir(d.file), dc.Background)
+	if err != nil {
+		return err
+	}
+	return d.loadBackground(d.dev, bgPath)
+}
+
+// GetDevice returns the streamdeck device this deck is bound to.
+func (d *Deck) GetDevice() *streamdeck.Device {
+	return d.dev
+}
+
+// LoadWidgets (re)builds every widget of a deck from its current config. The
+// REST API calls this to apply a configuration change without restarting.
+func LoadWidgets(deck *Deck) error {
+	keyMap := map[uint8]KeyConfig{}
+	names := map[string]bool{}
+	for _, k := range deck.config.Keys {
+		if k.Name != "" {
+			if names[k.Name] {
+				return fmt.Errorf("duplicate widgets with the name '%s'", k.Name)
+			}
+			names[k.Name] = true
+		}
+		keyMap[k.Index] = k
+	}
+
+	// close the widgets we are about to replace, so they can release resources
+	for i, w := range deck.widgets {
+		if e := w.Close(); e != nil {
+			errorLog(e, "failed to close widget %d", i)
+		}
+	}
+	deck.widgets = make(map[uint8]Widget)
+
+	for i := uint8(0); i < deck.dev.Keys; i++ {
+		w, err := LoadWidget(deck, i, keyMap[i])
+		if err != nil {
+			return err
+		}
+		deck.widgets[i] = w
+	}
+	return nil
+}
+
+// LoadWidget builds the widget for a single key.
+func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
+	bg := deck.backgroundForKey(deck.dev, i)
+	base := filepath.Dir(deck.file)
+
+	if keyConfig.Index == i && keyConfig.Widget.ID != "" {
+		return NewWidget(deck.dev, base, keyConfig, bg)
+	}
+	return NewBaseWidget(deck.dev, base, i, nil, nil, bg), nil
 }
 
 // watchForChanges reloads the deck whenever its config file changes on disk.
@@ -221,6 +264,16 @@ func (deck *Deck) loadBackground(dev *streamdeck.Device, bg string) error {
 		return err
 	}
 
+	if err := deck.validateBackground(background); err != nil {
+		return err
+	}
+
+	deck.background = background
+	return nil
+}
+
+func (deck *Deck) validateBackground(background image.Image) error {
+	dev := deck.dev
 	rows := int(dev.Rows)
 	cols := int(dev.Columns)
 	padding := int(dev.Padding)
@@ -233,7 +286,6 @@ func (deck *Deck) loadBackground(dev *streamdeck.Device, bg string) error {
 		return fmt.Errorf("supplied background image has wrong dimensions, expected %dx%d pixels", width, height)
 	}
 
-	deck.background = background
 	return nil
 }
 
@@ -313,6 +365,23 @@ func (deck *Deck) restoreWidget(key uint8) {
 	if err := deck.widgets[key].Update(); err != nil {
 		fatal(err)
 	}
+}
+
+// ValidateWidgetBackground checks an uploaded image against the deck geometry.
+func (deck *Deck) ValidateWidgetBackground(background image.Image) error {
+	dev := deck.dev
+	rows := int(dev.Rows)
+	cols := int(dev.Columns)
+	padding := int(dev.Padding)
+	pixels := int(dev.Pixels)
+
+	width := cols*pixels + (cols-1)*padding
+	height := rows*pixels + (rows-1)*padding
+	if background.Bounds().Dx() != width ||
+		background.Bounds().Dy() != height {
+		return fmt.Errorf("supplied widget image has wrong dimensions, expected %dx%d pixels", width, height)
+	}
+	return nil
 }
 
 // handles keypress with delay.
@@ -435,8 +504,8 @@ func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) 
 	if a.Paste != "" {
 		emulateClipboard(a.Paste)
 	}
-	if a.DBus.Method != "" {
-		executeDBusMethod(&a.DBus)
+	if a.DBus != nil && a.DBus.Method != "" {
+		executeDBusMethod(a.DBus)
 	}
 	if a.Exec != "" {
 		errorLog(executeCommand(a.Exec), "failed to execute command")
@@ -459,6 +528,7 @@ func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) 
 
 // updateWidgets updates/repaints all the widgets.
 func (deck *Deck) updateWidgets() {
+	updateMutex.Lock()
 	for w := range deck.Widgets {
 		if !w.RequiresUpdate() {
 			continue
@@ -469,6 +539,26 @@ func (deck *Deck) updateWidgets() {
 			fatal(err)
 		}
 	}
+	updateMutex.Unlock()
+}
+
+func (d *Deck) replaceBackground(image image.Image) error {
+	updateMutex.Lock()
+	err := d.validateBackground(image)
+	if err != nil {
+		updateMutex.Unlock()
+		return err
+	}
+	d.background = image
+	for w := range d.Widgets {
+		w.reloadBackground()
+		// fmt.Println("Repaint", w.Key())
+		if err := w.Update(); err != nil {
+			fatal(err)
+		}
+	}
+	updateMutex.Unlock()
+	return nil
 }
 
 // adjustBrightness adjusts the brightness.
