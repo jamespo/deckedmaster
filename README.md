@@ -8,28 +8,41 @@
 
 An application to control your Elgato Stream Deck on Linux
 
+> **This branch integrates all pull requests that were open upstream.**
+> Some of them overlapped and had to be reconciled — most notably, the `mute`
+> widget id now refers to output muting, and microphone muting moved to
+> `microphoneMute`. See [MERGED_PULL_REQUESTS.md](MERGED_PULL_REQUESTS.md) for
+> the full list and every behavioural difference.
+
 ## Features
 
 - Multiple pages & navigation between decks
 - Buttons (icons & text)
-- Background images
+- Background images, including per-key background colors
 - Brightness control
 - Supports different actions for short & long presses
+- Automatically reloads a deck when its config file changes
+- Per-window key overrides (X11 or KWin)
 - Comes with a collection of widgets:
     - Buttons
     - Time (with formatting)
+    - Timer / countdown
     - CPU/Mem usage
-    - Weather
-    - Command output
-    - Recently used windows (X11-only)
     - Hardware temperature sensor data
-
-    - Mute/Unmute default microphone (pulseaudio-only)
+    - Weather
+    - Command output (text or image)
+    - Recently used windows (X11-only)
+    - Audio output/input selection (PulseAudio)
+    - Mute/unmute speakers or microphone (PulseAudio)
+    - Per-application volume control (PulseAudio)
+    - Media player controls (MPRIS/DBus)
+    - Spotify
 - Lets you trigger several actions:
     - Run commands
     - Emulate a key-press
     - Paste to clipboard
     - Trigger a dbus call
+    - Control media players
 - REST based API:
     - Read and update device state like brightness and sleep/fade time.
     - Wake or put the device to sleep.
@@ -117,6 +130,31 @@ systemctl --user enable streamdeck.path
 systemctl --user start streamdeck.path
 ```
 
+### Wayland / KWin
+
+Window tracking (the `recentWindow` widget and
+[per-window key overrides](#per-window-key-overrides)) uses X11 by default. On
+Wayland, X11 window tracking is unavailable, so deckmaster instead exposes a
+DBus service at `io.github.muesli.DeckMaster` and waits for the compositor to
+tell it which window is active.
+
+For KWin (KDE Plasma), a small script that sends those notifications ships in
+the `kwin/` directory. Install and enable it with:
+
+```bash
+kpackagetool6 --type=KWin/Script --install kwin
+kwriteconfig6 --file kwinrc --group Plugins --key deckmasterEnabled true
+qdbus6 org.kde.KWin /KWin reconfigure
+```
+
+On Plasma 5, use `kpackagetool5`, `kwriteconfig5` and `qdbus` instead. You can
+also enable the script from *System Settings → Window Management → KWin
+Scripts* once it is installed.
+
+Other compositors can drive the same interface by calling the
+`ActiveWindowChanged` method on `/Monitor` with the window's resource name,
+title and id.
+
 ## Usage
 
 Start `deckmaster` with the initial deck configuration you want to load:
@@ -190,6 +228,41 @@ This even works recursively:
 parent = "another.deck"
 ```
 
+### Per-window key overrides
+
+A deck can override individual keys depending on which window currently has
+focus. Add one or more `[[window]]` blocks; `resource` and `title` are regular
+expressions matched against the active window, and the keys inside the block
+replace the deck's own keys for as long as that window is focused:
+
+```toml
+[[window]]
+  resource = "firefox"
+  title = ".*YouTube.*"
+
+  [[window.keys]]
+    index = 0
+    [window.keys.widget]
+      id = "mediaPlayer"
+```
+
+When no `[[window]]` block matches, the deck's regular keys are restored.
+Window tracking needs either X11 or the bundled KWin script (see
+[Wayland / KWin](#wayland--kwin)).
+
+### Automatic configuration reloading
+
+deckmaster watches the active deck file and reloads it automatically when it
+changes on disk, so you can edit a `.deck` file and see the result immediately.
+If the edited configuration is invalid, the previous one is kept and the error
+is printed to stderr.
+
+You can still trigger a reload explicitly by sending `SIGHUP`:
+
+```bash
+kill -HUP $(pidof deckmaster)
+```
+
 ### Widgets
 
 Any widget is build up the following way:
@@ -253,25 +326,68 @@ activates the window.
 If `showTitle` is `true`, the title of the window will be displayed below the
 window icon.
 
-#### Recent Window (requires pulseaudio)
+#### Microphone Mute (requires PulseAudio)
 
-Displays the mute status of the default pulseaudio source. Pressing the button
-toggles the state
+Displays the mute status of the default PulseAudio *source* (your microphone).
+Pressing the button toggles the state.
 
 ```toml
 [keys.widget]
-  id = "mute"
+  id = "microphoneMute"
   [keys.widget.config]
     icon = "assets/microphone-rec.png"
     iconMute = "assets/microphone-mute.png"
 ```
 
-If `showTitle` is `true`, the title of the window will be displayed below the
-window icon.
+`icon` is shown while the microphone is live, `iconMute` while it is muted.
+
+> **Note:** this widget's id used to be `mute`. That id now belongs to the
+> [Mute](#mute-requires-pulseaudio) widget, which mutes audio *output*. See
+> [Audio widgets](#audio-widgets) for the difference.
+
+#### Audio (requires PulseAudio)
+
+Displays the currently selected PulseAudio sink (output) or source (input) and
+lets you cycle between the available devices.
+
+```toml
+[keys.widget]
+  id = "audio"
+  [keys.widget.config]
+    stream = "sink" # or "source"
+```
+
+#### Mute (requires PulseAudio)
+
+Displays and toggles the mute state of the default PulseAudio *sink* (your
+speakers/headphones).
+
+```toml
+[keys.widget]
+  id = "mute"
+  [keys.widget.config]
+    stream = "sink" # or "source"
+    muted = false # optional, the icon state to start from
+```
+
+##### Audio widgets
+
+deckmaster ships three PulseAudio widgets that overlap slightly:
+
+| Widget | Controls | Comes from |
+| --- | --- | --- |
+| `mute` | Mute state of a sink or source | PR #147 |
+| `audio` | Which sink/source is selected | PR #147 |
+| `microphoneMute` | Mute state of the default source, with custom icons | PR #87 |
+| `pulseAudioControl` | Per-application playback streams | PR #93 |
 
 #### Time
 
 A flexible widget that can display the current time or date.
+
+Two presets are available: `clock` (equivalent to `format = "%H;%i;%s"` with
+`font = "bold;regular;thin"`) and `date` (equivalent to `format = "%l;%d;%M"`
+with `font = "regular;bold;regular"`). Both ignore any further `config`.
 
 ```toml
 [keys.widget]
@@ -333,6 +449,22 @@ A widget that displays the output of commands.
     color = "#fefefe" # optional
     layout = "0x0+72x20;0x20+72x52" # optional
 ```
+
+#### Image Command
+
+Like `command`, but the command is expected to print the *path of an image
+file*, which is then rendered on the key. Useful for icons that change based on
+external state.
+
+```toml
+[keys.widget]
+  id = "imageCommand"
+  interval = 1000 # optional
+  [keys.widget.config]
+    command = "~/bin/current-status-icon.sh"
+```
+
+The command is re-run on every update `interval` (defaults to one second).
 
 #### Weather
 
@@ -583,26 +715,6 @@ Cycle through players:
 
 Use `select+` to select the next player to be active and `select-` to select
 the previous player.
-
-
-### Background Image
-
-You can configure each deck to display an individual wallpaper behind its
-widgets:
-
-```toml
-background = "/some/image.png"
-```
-
-### Re-using another deck's configuration
-
-If you specify a `parent` inside a deck's configuration, it will inherit all
-of the parent's settings that are not overwritten by the deck's own settings.
-This even works recursively:
-
-```toml
-parent = "another.deck"
-```
 
 ## More Decks!
 
