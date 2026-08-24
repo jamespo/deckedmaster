@@ -22,6 +22,7 @@ An application to control your Elgato Stream Deck on Linux
     - Weather
     - Command output
     - Recently used windows (X11-only)
+    - Hardware temperature sensor data
 - Lets you trigger several actions:
     - Run commands
     - Emulate a key-press
@@ -351,6 +352,37 @@ When triggering the hold action the next timer in the times list is selected if
 no timer is running. If the timer is paused, it will be reset.
 The setting underflow determines whether the timer keeps ticking after exceeding its deadline.
 The adaptive settings allows the removal of leading zeroes and delimiters that are not required for the time representation.
+
+#### Temperature
+
+This widget shows hardware temperature sensor data as a bar graph.
+
+```toml
+[keys.widget]
+  id = "temp"
+  [keys.widget.config]
+    sensorKey = "k10temp_tctl"
+    label = "CPU"
+    maxTemp = 100 #optional
+    color = "#fefefe" # optional
+    fillColor = "#d497de" # optional
+```
+
+The values for sensorKey are platform dependent. On most Linux systems they're
+based on the [hwmon-sysfs-interface](https://www.kernel.org/doc/Documentation/hwmon/sysfs-interface) under `/sys/class/hwmon`.
+
+Example: `k10temp_tctl`
+
+- `k10temp`: the name for a specific sensor interface, for example, the value
+reported from `/sys/class/hwmon/hwmon0/name`
+- `tctl`: the label for a specific sensor, for example, the value reported from
+`/sys/class/hwmon/hwmon0/temp1_label` (label is converted to lowercase and
+spaces are replaced with underscores)
+- For this example, the temperature value would be available in `/sys/class/hwmon/hwmon0/temp1_input`
+
+For the full explanation on how these sensor keys are created on all platforms,
+check the `SensorTemperatures*` functions in the [gopsutil](https://github.com/shirou/gopsutil/blob/master/host/host.go)
+package.
 
 ### Actions
 
