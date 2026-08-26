@@ -37,7 +37,11 @@ func (w *WindowChannel) ActiveWindowChanged(class, title, id string) *dbus.Error
 
 func MonitorActiveWindowChanged() <-chan ActiveWindow {
 	w := WindowChannel{make(chan ActiveWindow)}
-	cnn, _ := dbus.SessionBus()
+	cnn, e := dbus.SessionBus()
+	if e != nil {
+		errorLog(e, "failed to connect to the session bus, active window tracking disabled")
+		return w.channel
+	}
 	_ = cnn.Export(&w, dbusMonitorPath, dbusInterface)
 
 	introspectable := introspect.Introspectable(intro)
@@ -54,7 +58,10 @@ func MonitorActiveWindowChanged() <-chan ActiveWindow {
 }
 
 func CallDBus(object, path, method string, args ...interface{}) error {
-	cnn, _ := dbus.SessionBus()
+	cnn, err := dbus.SessionBus()
+	if err != nil {
+		return err
+	}
 
 	o := cnn.Object(object, dbus.ObjectPath(path))
 	return o.Call(method, 0, args...).Err

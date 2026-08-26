@@ -1,11 +1,17 @@
 package main
 
 import (
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/tvidal-net/pulseaudio"
 )
+
+// errNoPulseAudio is returned by actions that need a PulseAudio connection when
+// the daemon could not be reached at startup (headless sessions, no user
+// PulseAudio/PipeWire socket, ...).
+var errNoPulseAudio = errors.New("PulseAudio is unavailable")
 
 const (
 	SinkChanged = iota
@@ -81,11 +87,22 @@ func NewPulseAudio() (*PulseAudio, error) {
 	return pulseAudio, nil
 }
 
+// Updates returns the channel change notifications are delivered on. When
+// PulseAudio is unavailable it returns a nil channel, which blocks forever in a
+// select instead of panicking.
 func (pa *PulseAudio) Updates() <-chan ChangeType {
+	if pa == nil {
+		return nil
+	}
 	return pa.updates
 }
 
 func (pa *PulseAudio) Start() {
+	if pa == nil {
+		verboseLog("PulseAudio unavailable, not monitoring audio changes")
+		return
+	}
+
 	var pulseAudioUpdates <-chan struct{}
 	for {
 		clientUpdates, e := pa.client.Updates()
@@ -136,6 +153,9 @@ func (pa *PulseAudio) Start() {
 }
 
 func (pa *PulseAudio) Muted(isSinkStream bool) bool {
+	if pa == nil {
+		return false
+	}
 	if isSinkStream {
 		return pa.currentSink.Muted
 	}
@@ -143,6 +163,9 @@ func (pa *PulseAudio) Muted(isSinkStream bool) bool {
 }
 
 func (pa *PulseAudio) ToggleMute(isSinkStream bool) error {
+	if pa == nil {
+		return errNoPulseAudio
+	}
 	if isSinkStream {
 		return pa.client.SetSinkMute(!pa.currentSink.Muted, pa.CurrentSinkName())
 	}
@@ -150,10 +173,16 @@ func (pa *PulseAudio) ToggleMute(isSinkStream bool) error {
 }
 
 func (pa *PulseAudio) CurrentSinkName() string {
+	if pa == nil {
+		return ""
+	}
 	return pa.currentSink.Name
 }
 
 func (pa *PulseAudio) SetSink(partialName string) error {
+	if pa == nil {
+		return errNoPulseAudio
+	}
 	verboseLog("currentSink: %s", pa.CurrentSinkName())
 	sinks, err := pa.client.Sinks()
 	if err != nil {
@@ -170,10 +199,16 @@ func (pa *PulseAudio) SetSink(partialName string) error {
 }
 
 func (pa *PulseAudio) CurrentSourceName() string {
+	if pa == nil {
+		return ""
+	}
 	return pa.currentSource.Name
 }
 
 func (pa *PulseAudio) SetSource(partialName string) error {
+	if pa == nil {
+		return errNoPulseAudio
+	}
 	verboseLog("currentSource: %s", pa.CurrentSourceName())
 	sources, err := pa.client.Sources()
 	if err != nil {
@@ -192,5 +227,8 @@ func (pa *PulseAudio) SetSource(partialName string) error {
 }
 
 func (pa *PulseAudio) Close() {
+	if pa == nil {
+		return
+	}
 	pa.client.Close()
 }

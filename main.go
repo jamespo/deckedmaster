@@ -334,9 +334,11 @@ func run() error {
 	// initialize dbus connection
 	sessionBus, e := dbus.ConnectSessionBus()
 	if e != nil {
-		return fmt.Errorf("failed to connect to DBus %w", e)
+		errorLog(e, "failed to connect to DBus")
+		errorLogF("Media player and window tracking widgets will be disabled!")
+	} else {
+		defer sessionBus.Close() //nolint:errcheck
 	}
-	defer sessionBus.Close() //nolint:errcheck
 
 	// initialize xorg connection and track window focus
 	tch := make(chan interface{})
@@ -361,7 +363,8 @@ func run() error {
 	mch := make(chan interface{}, 20)
 	mediaPlayers, e = NewMediaPlayers(mch)
 	if e != nil {
-		return fmt.Errorf("failed to initialize media players: %w", e)
+		errorLog(e, "failed to initialize media players")
+		errorLogF("Media player widgets will be disabled!")
 	}
 	mediaPlayers.Run()
 
@@ -372,9 +375,9 @@ func run() error {
 	pa, e = NewPulseAudio()
 	if e != nil {
 		errorLog(e, "failed to create PulseAudio device")
-	} else {
-		defer pa.Close()
+		errorLogF("Audio and mute widgets will be disabled!")
 	}
+	defer pa.Close()
 
 	// load deck
 	deck, e = LoadDeck(dev, ".", *deckFileConfig)

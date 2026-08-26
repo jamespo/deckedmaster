@@ -58,6 +58,7 @@ func Connect() (*Xorg, error) {
 
 	x.util, err = xgbutil.NewConn()
 	if err != nil {
+		x.conn.Close()
 		return nil, err
 	}
 
@@ -65,6 +66,7 @@ func Connect() (*Xorg, error) {
 		drw := xproto.Drawable(x.root)
 		screensaver.SelectInput(x.conn, drw, screensaver.EventNotifyMask)
 	} else {
+		x.Close()
 		return nil, err
 	}
 

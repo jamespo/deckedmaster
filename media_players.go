@@ -37,11 +37,19 @@ func NewMediaPlayers(eventCh chan<- interface{}) (*MediaPlayers, error) {
 }
 
 func (m *MediaPlayers) Close() error {
+	if m == nil {
+		return nil
+	}
 	return m.conn.Close()
 }
 
 // Run starts watching the bus for media players in the background.
 func (m *MediaPlayers) Run() {
+	if m == nil {
+		verboseLog("session bus unavailable, not monitoring media players")
+		return
+	}
+
 	go func() {
 		var names []string
 		err := m.conn.BusObject().Call("org.freedesktop.DBus.ListNames", 0).Store(&names)
@@ -76,23 +84,33 @@ func (m *MediaPlayers) Run() {
 }
 
 func (m *MediaPlayers) ActivePlayer() *MediaPlayer {
-	if m.activePlayer == nil {
+	if m == nil || m.activePlayer == nil {
 		return nil
 	}
 	return m.players[*m.activePlayer]
 }
 
+// ActivePlayerName returns the bus name of the active player, or "" when there
+// is none.
+func (m *MediaPlayers) ActivePlayerName() string {
+	if m == nil || m.activePlayer == nil {
+		return ""
+	}
+	return *m.activePlayer
+}
+
 func (m *MediaPlayers) SelectPlayer(offset int) {
-	if len(m.players) < 2 {
+	if m == nil || len(m.players) < 2 {
 		return
 	}
 
+	active := m.ActivePlayerName()
 	var keyList []string
 	current := -1
 	index := 0
 	for key := range m.players {
 		keyList = append(keyList, key)
-		if key == *m.activePlayer {
+		if key == active {
 			current = index
 		}
 		index++
@@ -152,14 +170,14 @@ func (m *MediaPlayers) removePlayer(busName string, ownerName string) {
 		return
 	}
 
-	if *m.activePlayer == ownerName {
+	if m.ActivePlayerName() == ownerName {
 		m.SelectPlayer(-1)
 	}
 
 	player.Close()
 	delete(m.players, ownerName)
 
-	if *m.activePlayer == ownerName {
+	if m.ActivePlayerName() == ownerName {
 		m.activePlayer = nil
 		m.eventCh <- ActiveMediaPlayerChanged{PlayerName: ""}
 	}
