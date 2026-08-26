@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"os"
@@ -82,23 +83,24 @@ func loadFont(name string) (*truetype.Font, error) {
 	return freetype.ParseFont(ttf)
 }
 
-func init() {
-	var e error
-	ttfFont, e = loadFont("Roboto-Regular.ttf")
-	if e != nil {
-		errorLog(e, "failed to load Roboto-Regular.ttf")
-		os.Exit(1)
+// loadFonts loads the fonts deckmaster renders widgets with. It is called from
+// main, so that merely importing the package (e.g. when running tests) does not
+// require the fonts to be installed.
+func loadFonts() error {
+	for _, f := range []struct {
+		name string
+		dst  **truetype.Font
+	}{
+		{"Roboto-Regular.ttf", &ttfFont},
+		{"Roboto-Thin.ttf", &ttfThinFont},
+		{"Roboto-Bold.ttf", &ttfBoldFont},
+	} {
+		ttf, err := loadFont(f.name)
+		if err != nil {
+			return fmt.Errorf("failed to load %s: %w", f.name, err)
+		}
+		*f.dst = ttf
 	}
 
-	ttfThinFont, e = loadFont("Roboto-Thin.ttf")
-	if e != nil {
-		errorLog(e, "failed to load Roboto-Thin.ttf")
-		os.Exit(1)
-	}
-
-	ttfBoldFont, e = loadFont("Roboto-Bold.ttf")
-	if e != nil {
-		errorLog(e, "failed to load Roboto-Bold.ttf")
-		os.Exit(1)
-	}
+	return nil
 }

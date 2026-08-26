@@ -11,13 +11,13 @@ jobs:
     env:
       GO111MODULE: "on"
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
       - name: Install Go
         uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Checkout code
-        uses: actions/checkout@v5
 
       - name: Download Go modules
         run: go mod download

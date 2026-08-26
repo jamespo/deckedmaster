@@ -36,7 +36,7 @@ var (
 	// Would not need this if there was a streamdeck.GetSleepTimeout()
 	sleepTimeout time.Duration
 	// Would not need this if there was a streamdeck.GetFadeDuration()
-	fadeDuration time.Duration = 250 * time.Millisecond
+	fadeDuration = 250 * time.Millisecond
 
 	invalidChars = regexp.MustCompile("[[:^graph:]]+")
 
@@ -419,6 +419,11 @@ func main() {
 
 		fmt.Println()
 		os.Exit(0)
+	}
+
+	if e := loadFonts(); e != nil {
+		errorLog(e, "fatal")
+		os.Exit(1)
 	}
 
 	if e := run(); e != nil {
