@@ -17,7 +17,7 @@ type MediaPlayerWidget struct {
 
 	playerName bool
 
-	currentPlayer *string
+	currentPlayer string
 	currentArtURL string
 
 	currentPlaybackStatus string
@@ -58,8 +58,8 @@ func (w *MediaPlayerWidget) Update() error {
 	player := mediaPlayers.ActivePlayer()
 
 	if w.playerName {
-		if w.currentPlayer != mediaPlayers.activePlayer {
-			w.currentPlayer = mediaPlayers.activePlayer
+		if activePlayer := mediaPlayers.ActivePlayerName(); w.currentPlayer != activePlayer {
+			w.currentPlayer = activePlayer
 			fresh = false
 
 			w.label = ""
