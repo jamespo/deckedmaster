@@ -19,6 +19,7 @@ require (
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/jfreymuth/pulse v0.1.0
 	github.com/jub0bs/fcors v0.5.1
+	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8
 	github.com/lesismal/nbio v1.3.17
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/mitchellh/go-homedir v1.1.0
@@ -53,7 +54,6 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/lesismal/llib v1.1.12 // indirect

@@ -15,7 +15,6 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/fsnotify/fsnotify"
-	"github.com/muesli/streamdeck"
 )
 
 var (
@@ -32,7 +31,7 @@ type WindowWidgets struct {
 // Deck is a set of widgets.
 type Deck struct {
 	file       string
-	dev        *streamdeck.Device
+	dev        *Device
 	config     DeckConfig
 	background image.Image
 	windows    []WindowWidgets
@@ -41,7 +40,7 @@ type Deck struct {
 }
 
 // LoadDeck loads a deck configuration.
-func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
+func LoadDeck(dev *Device, base string, deck string) (*Deck, error) {
 	path, err := expandPath(base, deck)
 	if err != nil {
 		return nil, err
@@ -99,7 +98,7 @@ func (deck *Deck) applyConfig(dc DeckConfig) error {
 }
 
 // GetDevice returns the streamdeck device this deck is bound to.
-func (deck *Deck) GetDevice() *streamdeck.Device {
+func (deck *Deck) GetDevice() *Device {
 	return deck.dev
 }
 
@@ -150,7 +149,7 @@ func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
 // watchForChanges reloads the deck whenever its config file changes on disk.
 // The watcher shuts itself down as soon as another deck has been loaded, so
 // only the currently active deck ever triggers a reload.
-func (deck *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path string) error {
+func (deck *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -205,7 +204,7 @@ func (deck *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path s
 	return nil
 }
 
-func (deck *Deck) addWindow(dev *streamdeck.Device, w *WindowConfig) error {
+func (deck *Deck) addWindow(dev *Device, w *WindowConfig) error {
 	verboseLog("loading window overrides %s:%s", w.Resource, w.Title)
 
 	resource, err := regexp.Compile(w.Resource)
@@ -235,7 +234,7 @@ func (deck *Deck) addWindow(dev *streamdeck.Device, w *WindowConfig) error {
 	return nil
 }
 
-func (ww *WindowWidgets) addWidget(dev *streamdeck.Device, deck *Deck, key KeyConfig) error {
+func (ww *WindowWidgets) addWidget(dev *Device, deck *Deck, key KeyConfig) error {
 	bg := deck.backgroundForKey(dev, key.Index)
 	widget, err := NewWidget(dev, filepath.Dir(deck.file), key, bg)
 	if err != nil {
@@ -290,7 +289,7 @@ func (deck *Deck) validateBackground(background image.Image) error {
 }
 
 // returns the background image for an individual key.
-func (deck *Deck) backgroundForKey(dev *streamdeck.Device, key uint8) image.Image {
+func (deck *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
 	padding := int(dev.Padding)
 	pixels := int(dev.Pixels)
 	bg := image.NewRGBA(image.Rect(0, 0, pixels, pixels))
@@ -470,7 +469,7 @@ func (deck *Deck) widget(key uint8) Widget {
 }
 
 // triggerAction triggers an action.
-func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) {
+func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 	w := deck.widget(index)
 	w.TriggerAction(hold)
 
@@ -562,7 +561,7 @@ func (deck *Deck) replaceBackground(image image.Image) error {
 }
 
 // adjustBrightness adjusts the brightness.
-func (deck *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
+func (deck *Deck) adjustBrightness(dev *Device, value string) {
 	if len(value) == 0 {
 		errorLogF("no brightness value specified")
 		return

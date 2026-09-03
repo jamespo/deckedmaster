@@ -6,7 +6,17 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/muesli/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/muesli/deckmaster/actions)
 [![Go ReportCard](https://goreportcard.com/badge/github.com/muesli/deckmaster?style=for-the-badge)](https://goreportcard.com/report/muesli/deckmaster)
 
-An application to control your Elgato Stream Deck on Linux
+An application to control your Elgato Stream Deck or Ajazz AKP03E on Linux
+
+## Supported devices
+
+- Elgato Stream Deck, Stream Deck MK.2, Stream Deck Mini, Stream Deck Mini MK.2, Stream Deck XL
+- Ajazz AKP03E (both hardware revisions, USB PID `1002` and `3002`)
+
+The Ajazz AKP03E's 3 rotary encoders can be bound to actions like any other
+key (pressing them), but turning them isn't mapped to anything yet — deckmaster
+doesn't have a concept of a continuous/relative input. Turns are logged with
+`--verbose` if you want to build on top of that.
 
 > **This branch integrates all pull requests that were open upstream.**
 > Some of them overlapped and had to be reconciled — most notably, the `mute`
@@ -81,10 +91,24 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", TAG+="uacce
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", TAG+="uaccess", SYMLINK+="streamdeck-xl"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="1002", MODE="0660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="3002", MODE="0660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
 ```
 
 Reload the rules with `sudo udevadm control --reload-rules`. Unplug and re-plug
 the device, and you should be good to go.
+
+> The Ajazz rules above set `GROUP="plugdev"` in addition to the usual
+> `TAG+="uaccess"`. On some setups (e.g. certain Wayland session managers)
+> `systemd-logind` doesn't apply the `uaccess` ACL to the raw USB device node
+> reliably, and the device stays owned by `root` even after a reload/replug —
+> deckmaster (via hidapi/libusb, which talks to `/dev/bus/usb/...`, not
+> `/dev/hidraw*`) will then fail with `hidapi: failed to open device`. The
+> `GROUP="plugdev"` fallback fixes that deterministically, as long as your
+> user is a member of the `plugdev` group (`groups $USER` to check, `sudo
+> usermod -aG plugdev $USER` to add yourself, then log out/in). If your
+> distro doesn't have a `plugdev` group, swap it for any group your user
+> belongs to.
 
 ### Starting deckmaster automatically
 

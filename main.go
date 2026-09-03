@@ -15,7 +15,6 @@ import (
 
 	"github.com/bendahl/uinput"
 	"github.com/mitchellh/go-homedir"
-	"github.com/muesli/streamdeck"
 )
 
 var (
@@ -141,7 +140,7 @@ func reapChildProcesses() {
 	}
 }
 
-func eventLoop(dev *streamdeck.Device, tch chan interface{}, mch chan interface{}) error {
+func eventLoop(dev *Device, tch chan interface{}, mch chan interface{}) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -252,15 +251,15 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}, mch chan interface{
 	}
 }
 
-func closeDevice(dev *streamdeck.Device) {
+func closeDevice(dev *Device) {
 	errorLog(dev.Reset(), "failed to reset Stream Deck")
 	errorLog(dev.Clear(), "failed to clear the Stream Deck")
 	errorLog(dev.Sleep(), "failed to sleep the Stream Deck")
 	errorLog(dev.Close(), "failed to close Stream Deck")
 }
 
-func initDevice() (*streamdeck.Device, error) {
-	d, err := streamdeck.Devices()
+func initDevice() (*Device, error) {
+	d, err := Devices()
 	if err != nil {
 		return nil, err
 	}
