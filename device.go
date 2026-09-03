@@ -11,6 +11,12 @@ import (
 type Key struct {
 	Index   uint8
 	Pressed bool
+
+	// Rotation is non-zero for a relative/rotary input event (a dial being
+	// turned), with the sign indicating direction; Index still identifies
+	// which control raised the event, and Pressed is unused. Devices without
+	// rotary controls (e.g. a genuine Elgato Stream Deck) never emit these.
+	Rotation int8
 }
 
 // deviceBackend is implemented by every piece of hardware deckmaster can

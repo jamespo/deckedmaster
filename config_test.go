@@ -297,6 +297,44 @@ func TestKeyAndWindowConfigRoundTrip(t *testing.T) {
 	}
 }
 
+// Rotary encoders (e.g. on the Ajazz AKP03E) bind actions separately from a
+// regular keypress, via action_rotate_left/action_rotate_right.
+func TestRotateActionConfigRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rotate.deck")
+
+	writeFile(t, path, `
+[[keys]]
+  index = 9
+  [keys.action]
+    keycode = "Mute"
+  [keys.action_rotate_left]
+    device = "volume-5"
+  [keys.action_rotate_right]
+    device = "volume+5"
+`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+
+	if len(cfg.Keys) != 1 {
+		t.Fatalf("expected 1 key, got %d", len(cfg.Keys))
+	}
+	k := cfg.Keys[0]
+
+	if k.ActionRotateLeft == nil || k.ActionRotateLeft.Device != "volume-5" {
+		t.Errorf("action_rotate_left not parsed: %#v", k.ActionRotateLeft)
+	}
+	if k.ActionRotateRight == nil || k.ActionRotateRight.Device != "volume+5" {
+		t.Errorf("action_rotate_right not parsed: %#v", k.ActionRotateRight)
+	}
+	if k.Action == nil || k.Action.Keycode != "Mute" {
+		t.Errorf("action not parsed: %#v", k.Action)
+	}
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {

@@ -13,10 +13,13 @@ An application to control your Elgato Stream Deck or Ajazz AKP03E on Linux
 - Elgato Stream Deck, Stream Deck MK.2, Stream Deck Mini, Stream Deck Mini MK.2, Stream Deck XL
 - Ajazz AKP03E (both hardware revisions, USB PID `1002` and `3002`)
 
-The Ajazz AKP03E's 3 rotary encoders can be bound to actions like any other
-key (pressing them), but turning them isn't mapped to anything yet — deckmaster
-doesn't have a concept of a continuous/relative input. Turns are logged with
-`--verbose` if you want to build on top of that.
+The Ajazz AKP03E's 3 rotary encoders can be bound to actions both for
+pressing them (`keys.action`/`keys.action_hold`, same as any other key) and
+for turning them (`keys.action_rotate_left`/`keys.action_rotate_right` — see
+[Rotary encoder actions](#rotary-encoder-actions)). They have no screen, so
+there's nothing to configure under `keys.widget` for them. See
+[decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck) for a full example,
+including using the left encoder to control the volume.
 
 > **This branch integrates all pull requests that were open upstream.**
 > Some of them overlapped and had to be reconciled — most notably, the `mute`
@@ -638,7 +641,25 @@ media player.
 
 You can hook up any key with several actions. A regular keypress will trigger
 the widget's configured `keys.action`, while holding the key will trigger
-`keys.action_hold`.
+`keys.action_hold`. Any of the actions below can be used in any of these
+slots.
+
+#### Rotary encoder actions
+
+Devices with rotary encoders/dials (currently just the Ajazz AKP03E) let you
+bind separate actions to turning them, independent of pressing them:
+
+```toml
+[keys.action_rotate_left]
+  device = "volume-5"
+[keys.action_rotate_right]
+  device = "volume+5"
+```
+
+`keys.action_rotate_left` fires once per detent turned counter-clockwise,
+`keys.action_rotate_right` once per detent turned clockwise. Since the
+encoders have no screen, a key bound this way usually has no `keys.widget`
+at all - see [decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck).
 
 #### Switch deck
 
@@ -716,6 +737,15 @@ pressed:
 ```toml
 [keys.action]
   device = "sleep"
+```
+
+Increase/decrease/set the default PulseAudio sink's volume (percent, same
+`+`/`-`/`=` syntax as `brightness`, requires PulseAudio). If no value is
+specified for `+`/`-`, it changes by 5%:
+
+```toml
+[keys.action]
+  device = "volume+5"   # or "volume-5", or "volume=50"
 ```
 
 #### Media player actions

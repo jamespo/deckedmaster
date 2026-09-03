@@ -143,7 +143,17 @@ func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
 	if keyConfig.Index == i && keyConfig.Widget.ID != "" {
 		return NewWidget(deck.dev, base, keyConfig, bg)
 	}
-	return NewBaseWidget(deck.dev, base, i, nil, nil, bg), nil
+
+	// No widget configured for this key (e.g. a rotary encoder position with
+	// no screen) - still honor any actions bound to it.
+	var action, actionHold, actionRotateLeft, actionRotateRight *ActionConfig
+	if keyConfig.Index == i {
+		action = keyConfig.Action
+		actionHold = keyConfig.ActionHold
+		actionRotateLeft = keyConfig.ActionRotateLeft
+		actionRotateRight = keyConfig.ActionRotateRight
+	}
+	return NewBaseWidget(deck.dev, base, i, action, actionHold, actionRotateLeft, actionRotateRight, bg), nil
 }
 
 // watchForChanges reloads the deck whenever its config file changes on disk.
@@ -479,7 +489,28 @@ func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 	} else {
 		a = w.Action()
 	}
+	deck.runAction(dev, a)
+}
 
+// triggerRotateAction triggers the action bound to a rotary encoder being
+// turned. delta is negative for a counter-clockwise turn, positive for
+// clockwise; only its sign is used. Devices without rotary encoders (e.g. a
+// genuine Stream Deck) never report rotation, so this is never reached for
+// them.
+func (deck *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
+	w := deck.widget(index)
+
+	var a *ActionConfig
+	if delta < 0 {
+		a = w.ActionRotateLeft()
+	} else {
+		a = w.ActionRotateRight()
+	}
+	deck.runAction(dev, a)
+}
+
+// runAction executes a single resolved ActionConfig.
+func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a == nil {
 		return
 	}
@@ -518,6 +549,9 @@ func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 
 		case strings.HasPrefix(a.Device, "brightness"):
 			deck.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
+
+		case strings.HasPrefix(a.Device, "volume"):
+			deck.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
 
 		default:
 			errorLogF("Unrecognized special action: %s", a.Device)
@@ -605,4 +639,57 @@ func (deck *Deck) adjustBrightness(dev *Device, value string) {
 	}
 
 	*brightnessConfig = uint(brightness)
+}
+
+// adjustVolume adjusts the default PulseAudio sink's volume. value uses the
+// same "=[n]", "-[n]", "+[n]" mini-language as "brightness" actions,
+// interpreted as a percentage (0-100).
+func (deck *Deck) adjustVolume(value string) {
+	if len(value) == 0 {
+		errorLogF("no volume value specified")
+		return
+	}
+
+	current, err := pa.Volume()
+	if err != nil {
+		errorLog(err, "failed to read current volume")
+		return
+	}
+
+	v := int64(math.MinInt64)
+	if len(value) > 1 {
+		nv, err := strconv.ParseInt(value[1:], 10, 64)
+		if err == nil {
+			v = nv
+		}
+	}
+
+	switch value[0] {
+	case '=': // volume=[n]:
+	case '-': // volume-[n]:
+		if v == math.MinInt64 {
+			v = 5
+		}
+		v = int64(math.Round(float64(current)*100)) - v
+	case '+': // volume+[n]:
+		if v == math.MinInt64 {
+			v = 5
+		}
+		v = int64(math.Round(float64(current)*100)) + v
+	default:
+		v = math.MinInt64
+	}
+
+	if v == math.MinInt64 {
+		errorLogF("could not grok the volume from value '%s'", value)
+		return
+	}
+
+	if v < 0 {
+		v = 0
+	} else if v > 100 {
+		v = 100
+	}
+
+	errorLog(pa.SetVolume(float32(v)/100), "failed to set volume")
 }

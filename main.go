@@ -172,6 +172,12 @@ func eventLoop(dev *Device, tch chan interface{}, mch chan interface{}) error {
 				continue
 			}
 
+			if k.Rotation != 0 {
+				verboseLog("Triggering rotate action for key %d (%+d)", k.Index, k.Rotation)
+				deck.triggerRotateAction(dev, k.Index, k.Rotation)
+				continue
+			}
+
 			var state bool
 			if ks, ok := keyStates.Load(k.Index); ok {
 				state = ks.(bool)

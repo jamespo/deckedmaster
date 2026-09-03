@@ -541,10 +541,22 @@ func (a *ajazzDevice) ReadKeys() (chan Key, error) {
 			case input == 0x34: // right encoder press
 				emit(11, pressed, &encoders[2])
 
-			case input == 0x90 || input == 0x91 || // left encoder twist
-				input == 0x50 || input == 0x51 || // middle/top encoder twist
-				input == 0x60 || input == 0x61: // right encoder twist
-				verboseLog("Ajazz encoder twist: code=0x%02x (not mapped to an action)", input)
+			// Encoder twist events are relative (one report per detent) and
+			// have no press/release state, so they're reported as Key events
+			// with Rotation set instead of Pressed, using the same key index
+			// as that encoder's press (9=left, 10=middle/top, 11=right).
+			case input == 0x90: // left encoder, turned counter-clockwise
+				kch <- Key{Index: 9, Rotation: -1}
+			case input == 0x91: // left encoder, turned clockwise
+				kch <- Key{Index: 9, Rotation: 1}
+			case input == 0x50: // middle/top encoder, turned counter-clockwise
+				kch <- Key{Index: 10, Rotation: -1}
+			case input == 0x51: // middle/top encoder, turned clockwise
+				kch <- Key{Index: 10, Rotation: 1}
+			case input == 0x60: // right encoder, turned counter-clockwise
+				kch <- Key{Index: 11, Rotation: -1}
+			case input == 0x61: // right encoder, turned clockwise
+				kch <- Key{Index: 11, Rotation: 1}
 			}
 		}
 	}()
