@@ -706,6 +706,14 @@ at all - see [decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck).
   exec = "some_command --with-parameters"
 ```
 
+The command is not run through a shell, but a leading `~` in the command or in
+any of its parameters is expanded to your home directory:
+
+```toml
+[keys.action]
+  exec = "~/.config/deckedmaster/decks/sonos/bin/sonos-deck favourite-scroll +1"
+```
+
 #### Emulate key-presses
 
 ```toml

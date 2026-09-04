@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 const (
@@ -61,6 +63,21 @@ func moveProcessToCGroup(pid int, cgroup string) error {
 	return os.WriteFile(cgroupFile, []byte(fileContents), FileMode)
 }
 
+// expandTilde replaces a leading "~" with the user's home directory. The
+// argument is returned unchanged when it doesn't start with a tilde or when the
+// home directory can't be resolved.
+func expandTilde(s string) string {
+	if s != "~" && !strings.HasPrefix(s, "~/") {
+		return s
+	}
+	expanded, err := homedir.Expand(s)
+	if err != nil {
+		errorLog(err, "Unable to expand '%s'", s)
+		return s
+	}
+	return expanded
+}
+
 func expandExecutable(exe string) string {
 	for _, base := range PATH {
 		cmd := filepath.Join(base, exe)
@@ -79,6 +96,9 @@ func expandExecutable(exe string) string {
 // executes a command.
 func executeCommand(cmd string) error {
 	args := SPACES.Split(cmd, -1)
+	for i, arg := range args {
+		args[i] = expandTilde(arg)
+	}
 	exe := expandExecutable(args[0])
 
 	command := exec.Command(exe, args[1:]...)
