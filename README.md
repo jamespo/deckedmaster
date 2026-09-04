@@ -85,7 +85,7 @@ To install deckmaster, simply run:
 ## System Setup
 
 On Linux you need to set up some `udev` rules to be able to access the device as
-a regular user. Edit `/etc/udev/rules.d/99-streamdeck.rules` and add these lines:
+a regular user. Edit `/etc/udev/rules.d/60-streamdeck.rules` and add these lines:
 
 ```
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", TAG+="uaccess", SYMLINK+="streamdeck"
@@ -94,24 +94,55 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", TAG+="uacce
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", TAG+="uaccess", SYMLINK+="streamdeck-xl"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="1002", MODE="0660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="3002", MODE="0660", GROUP="plugdev", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="1002", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="3002", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
 ```
 
 Reload the rules with `sudo udevadm control --reload-rules`. Unplug and re-plug
 the device, and you should be good to go.
 
-> The Ajazz rules above set `GROUP="plugdev"` in addition to the usual
-> `TAG+="uaccess"`. On some setups (e.g. certain Wayland session managers)
-> `systemd-logind` doesn't apply the `uaccess` ACL to the raw USB device node
-> reliably, and the device stays owned by `root` even after a reload/replug —
-> deckmaster (via hidapi/libusb, which talks to `/dev/bus/usb/...`, not
-> `/dev/hidraw*`) will then fail with `hidapi: failed to open device`. The
-> `GROUP="plugdev"` fallback fixes that deterministically, as long as your
-> user is a member of the `plugdev` group (`groups $USER` to check, `sudo
-> usermod -aG plugdev $USER` to add yourself, then log out/in). If your
-> distro doesn't have a `plugdev` group, swap it for any group your user
-> belongs to.
+> **The `60-` filename prefix matters.** systemd applies the `uaccess` tag from
+> `/usr/lib/udev/rules.d/73-seat-late.rules`, and `udev` evaluates rule files in
+> filename order. If you put these rules in a file that sorts *after* 73 — such
+> as the `99-streamdeck.rules` that older versions of this README (and most
+> Stream Deck guides) suggest — then `TAG+="uaccess"` is applied too late, the
+> `uaccess` builtin has already run, and no ACL is ever granted. Any prefix
+> below 73 works; `60-` is a safe choice.
+
+### Troubleshooting: `failed to initialize Stream Deck: hidapi: failed to open device`
+
+This is almost always the udev permissions above not taking effect. deckmaster
+talks to the device through hidapi's **libusb** backend, so it opens
+`/dev/bus/usb/BBB/DDD` — *not* `/dev/hidraw*`. Adding `SUBSYSTEM=="hidraw"`
+rules will not help on its own.
+
+Find your device and check whether you actually have access to its node:
+
+```console
+$ lsusb | grep -i ajazz
+Bus 003 Device 002: ID 0300:3002 Ajazz HOTSPOTEKUSB HID DEMO
+$ getfacl /dev/bus/usb/003/002 | grep "^user:"
+user:james:rw-
+```
+
+If that `user:` line for your username is missing, the `uaccess` ACL was not
+applied. In order of likelihood:
+
+1. **Your rules file sorts after `73-seat-late.rules`** — see the note above;
+   rename it to `60-streamdeck.rules` and reload.
+2. **The rules were never reloaded or the device was never re-plugged.** Run
+   `sudo udevadm control --reload-rules`, then either re-plug or
+   `sudo udevadm trigger --action=add --subsystem-match=usb`.
+3. **You have no active local seat session.** `uaccess` only grants the ACL to a
+   user logged in on a local seat; `loginctl` should show a session for you with
+   a `SEAT` of `seat0`. Over plain SSH it will not, and you need a group-based
+   rule instead: add `MODE="0660", GROUP="plugdev"` to the rule lines and make
+   sure you're in that group (`sudo usermod -aG plugdev $USER`, then log out and
+   back in). Substitute any group you belong to if your distro has no `plugdev`.
+
+To confirm it really is permissions rather than a device problem, running
+deckmaster once with `sudo` should get past this error. Don't leave it that way
+— fix the rules instead.
 
 ### Starting deckmaster automatically
 
