@@ -310,8 +310,8 @@ func (a *ajazzDevice) fade(start, end uint8) error {
 	}
 
 	for current := float64(start); ; current += step {
-		if !((start < end && int8(current) < int8(end)) ||
-			(start > end && int8(current) > int8(end))) {
+		if !((start < end && uint8(current) < end) ||
+			(start > end && uint8(current) > end)) {
 			break
 		}
 		if err := a.setBrightness(uint8(current)); err != nil {
@@ -364,6 +364,9 @@ func (a *ajazzDevice) SetImage(index uint8, img image.Image) error {
 		return fmt.Errorf("cannot convert image data: %w", err)
 	}
 
+	if len(data) > 65535 {
+		return fmt.Errorf("image data too large for device")
+	}
 	if err := a.sendCommand("BAT",
 		0x00, 0x00, byte(len(data)>>8), byte(len(data)), index+1); err != nil {
 		return err
