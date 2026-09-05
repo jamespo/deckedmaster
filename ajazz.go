@@ -367,8 +367,9 @@ func (a *ajazzDevice) SetImage(index uint8, img image.Image) error {
 	if len(data) > 65535 {
 		return fmt.Errorf("image data too large for device")
 	}
+	dataLen := len(data) // bounds-checked above to be <= 65535
 	if err := a.sendCommand("BAT",
-		0x00, 0x00, byte(uint(len(data))>>8), byte(uint(len(data))), index+1); err != nil {
+		0x00, 0x00, byte(dataLen>>8), byte(dataLen), index+1); err != nil { //nolint:gosec // dataLen bounds-checked above
 		return err
 	}
 	if err := a.writeImageData(data); err != nil {

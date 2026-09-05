@@ -63,7 +63,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/runtime/server-middleware/docui"
 	adapter "github.com/gwatts/gin-adapter"
 	"github.com/jub0bs/fcors"
 	"github.com/lesismal/nbio/nbhttp"
@@ -924,10 +924,10 @@ func initRestAPI(listenAddress string, trustedProxies string, enabledDocs bool) 
 	if enabledDocs {
 		verboseLog("Documentation served on /docs.")
 		router.StaticFile("/swagger.json", "./swagger.json")
-		router.GET("/docs", gin.WrapH(middleware.SwaggerUI(middleware.SwaggerUIOpts{
-			BasePath: "/",
-			SpecURL:  "/swagger.json",
-		}, http.NotFoundHandler())))
+		router.GET("/docs", gin.WrapH(docui.SwaggerUI(http.NotFoundHandler(),
+			docui.WithUIBasePath("/"),
+			docui.WithSpecURL("/swagger.json"),
+		)))
 	}
 
 	return nbhttp.NewServer(nbhttp.Config{
