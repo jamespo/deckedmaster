@@ -25,7 +25,7 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/shirou/gopsutil/v3 v3.23.9
 	github.com/tvidal-net/pulseaudio v0.0.0-20250620201345-9831624d251c
-	golang.org/x/image v0.35.0
+	golang.org/x/image v0.45.0
 )
 
 require (
