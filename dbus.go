@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	dbusInterface   = "io.github.muesli.DeckMaster"
+	dbusInterface   = "io.github.jamespo.DeckedMaster"
 	dbusMonitorPath = "/Monitor"
 	introInterface  = "org.freedesktop.DBus.Introspectable"
 	intro           = `<node>

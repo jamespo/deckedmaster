@@ -15,7 +15,6 @@ import (
 
 	"github.com/bendahl/uinput"
 	"github.com/mitchellh/go-homedir"
-	"github.com/muesli/streamdeck"
 )
 
 var (
@@ -141,7 +140,7 @@ func reapChildProcesses() {
 	}
 }
 
-func eventLoop(dev *streamdeck.Device, tch chan interface{}, mch chan interface{}) error {
+func eventLoop(dev *Device, tch chan interface{}, mch chan interface{}) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
@@ -170,6 +169,12 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}, mch chan interface{
 				if e = dev.Open(); e != nil {
 					return e
 				}
+				continue
+			}
+
+			if k.Rotation != 0 {
+				verboseLog("Triggering rotate action for key %d (%+d)", k.Index, k.Rotation)
+				deck.triggerRotateAction(dev, k.Index, k.Rotation)
 				continue
 			}
 
@@ -252,15 +257,15 @@ func eventLoop(dev *streamdeck.Device, tch chan interface{}, mch chan interface{
 	}
 }
 
-func closeDevice(dev *streamdeck.Device) {
+func closeDevice(dev *Device) {
 	errorLog(dev.Reset(), "failed to reset Stream Deck")
 	errorLog(dev.Clear(), "failed to clear the Stream Deck")
 	errorLog(dev.Sleep(), "failed to sleep the Stream Deck")
 	errorLog(dev.Close(), "failed to close Stream Deck")
 }
 
-func initDevice() (*streamdeck.Device, error) {
-	d, err := streamdeck.Devices()
+func initDevice() (*Device, error) {
+	d, err := Devices()
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +356,7 @@ func run() error {
 	}
 
 	// initialize virtual keyboard
-	keyboard, e = uinput.CreateKeyboard("/dev/uinput", []byte("deckmaster"))
+	keyboard, e = uinput.CreateKeyboard("/dev/uinput", []byte("deckedmaster"))
 	if e != nil {
 		errorLog(e, "failed to create virtual input device (/dev/uinput)")
 		errorLogF("Emulating keyboard events will be disabled!")
@@ -412,7 +417,7 @@ func main() {
 			Version = "(built from source)"
 		}
 
-		fmt.Printf("deckmaster %s", Version)
+		fmt.Printf("deckedmaster %s", Version)
 		if len(CommitSHA) > 0 {
 			fmt.Printf(" (%s)", CommitSHA)
 		}

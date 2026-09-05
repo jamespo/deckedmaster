@@ -172,6 +172,25 @@ func (pa *PulseAudio) ToggleMute(isSinkStream bool) error {
 	return pa.client.SetSourceMute(!pa.currentSource.Muted, pa.CurrentSourceName())
 }
 
+// Volume returns the default sink's volume, from 0 to 1 (or higher if boosted).
+func (pa *PulseAudio) Volume() (float32, error) {
+	if pa == nil {
+		return 0, errNoPulseAudio
+	}
+	return pa.client.Volume()
+}
+
+// SetVolume sets the default sink's volume, from 0 to 1 (or higher if boosted).
+func (pa *PulseAudio) SetVolume(volume float32) error {
+	if pa == nil {
+		return errNoPulseAudio
+	}
+	if volume < 0 {
+		volume = 0
+	}
+	return pa.client.SetVolume(volume)
+}
+
 func (pa *PulseAudio) CurrentSinkName() string {
 	if pa == nil {
 		return ""

@@ -129,7 +129,7 @@ The original implementation had defects that would have shipped real bugs:
 * A `select` with a single case, and `fmt.Printf` rather than the logging
   helpers.
 * Any filesystem event triggered a reload, and an invalid config called
-  `fatal()`, killing deckmaster on a typo.
+  `fatal()`, killing deckedmaster on a typo.
 
 It was rewritten as `Deck.watchForChanges`: errors are checked, the watcher is
 closed via `defer`, only write/create/rename events trigger a reload, the

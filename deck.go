@@ -15,7 +15,6 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/fsnotify/fsnotify"
-	"github.com/muesli/streamdeck"
 )
 
 var (
@@ -32,7 +31,7 @@ type WindowWidgets struct {
 // Deck is a set of widgets.
 type Deck struct {
 	file       string
-	dev        *streamdeck.Device
+	dev        *Device
 	config     DeckConfig
 	background image.Image
 	windows    []WindowWidgets
@@ -41,7 +40,7 @@ type Deck struct {
 }
 
 // LoadDeck loads a deck configuration.
-func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
+func LoadDeck(dev *Device, base string, deck string) (*Deck, error) {
 	path, err := expandPath(base, deck)
 	if err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func LoadDeck(dev *streamdeck.Device, base string, deck string) (*Deck, error) {
 	}
 
 	if e := d.watchForChanges(dev, base, deck, path); e != nil {
-		// a missing file watch is not fatal, deckmaster just won't auto-reload
+		// a missing file watch is not fatal, deckedmaster just won't auto-reload
 		errorLog(e, "can't watch deck for changes")
 	}
 
@@ -99,7 +98,7 @@ func (deck *Deck) applyConfig(dc DeckConfig) error {
 }
 
 // GetDevice returns the streamdeck device this deck is bound to.
-func (deck *Deck) GetDevice() *streamdeck.Device {
+func (deck *Deck) GetDevice() *Device {
 	return deck.dev
 }
 
@@ -144,13 +143,23 @@ func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
 	if keyConfig.Index == i && keyConfig.Widget.ID != "" {
 		return NewWidget(deck.dev, base, keyConfig, bg)
 	}
-	return NewBaseWidget(deck.dev, base, i, nil, nil, bg), nil
+
+	// No widget configured for this key (e.g. a rotary encoder position with
+	// no screen) - still honor any actions bound to it.
+	var action, actionHold, actionRotateLeft, actionRotateRight *ActionConfig
+	if keyConfig.Index == i {
+		action = keyConfig.Action
+		actionHold = keyConfig.ActionHold
+		actionRotateLeft = keyConfig.ActionRotateLeft
+		actionRotateRight = keyConfig.ActionRotateRight
+	}
+	return NewBaseWidget(deck.dev, base, i, action, actionHold, actionRotateLeft, actionRotateRight, bg), nil
 }
 
 // watchForChanges reloads the deck whenever its config file changes on disk.
 // The watcher shuts itself down as soon as another deck has been loaded, so
 // only the currently active deck ever triggers a reload.
-func (deck *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path string) error {
+func (deck *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -205,7 +214,7 @@ func (deck *Deck) watchForChanges(dev *streamdeck.Device, base, deckName, path s
 	return nil
 }
 
-func (deck *Deck) addWindow(dev *streamdeck.Device, w *WindowConfig) error {
+func (deck *Deck) addWindow(dev *Device, w *WindowConfig) error {
 	verboseLog("loading window overrides %s:%s", w.Resource, w.Title)
 
 	resource, err := regexp.Compile(w.Resource)
@@ -235,7 +244,7 @@ func (deck *Deck) addWindow(dev *streamdeck.Device, w *WindowConfig) error {
 	return nil
 }
 
-func (ww *WindowWidgets) addWidget(dev *streamdeck.Device, deck *Deck, key KeyConfig) error {
+func (ww *WindowWidgets) addWidget(dev *Device, deck *Deck, key KeyConfig) error {
 	bg := deck.backgroundForKey(dev, key.Index)
 	widget, err := NewWidget(dev, filepath.Dir(deck.file), key, bg)
 	if err != nil {
@@ -290,7 +299,7 @@ func (deck *Deck) validateBackground(background image.Image) error {
 }
 
 // returns the background image for an individual key.
-func (deck *Deck) backgroundForKey(dev *streamdeck.Device, key uint8) image.Image {
+func (deck *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
 	padding := int(dev.Padding)
 	pixels := int(dev.Pixels)
 	bg := image.NewRGBA(image.Rect(0, 0, pixels, pixels))
@@ -470,7 +479,7 @@ func (deck *Deck) widget(key uint8) Widget {
 }
 
 // triggerAction triggers an action.
-func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) {
+func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 	w := deck.widget(index)
 	w.TriggerAction(hold)
 
@@ -480,7 +489,28 @@ func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) 
 	} else {
 		a = w.Action()
 	}
+	deck.runAction(dev, a)
+}
 
+// triggerRotateAction triggers the action bound to a rotary encoder being
+// turned. delta is negative for a counter-clockwise turn, positive for
+// clockwise; only its sign is used. Devices without rotary encoders (e.g. a
+// genuine Stream Deck) never report rotation, so this is never reached for
+// them.
+func (deck *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
+	w := deck.widget(index)
+
+	var a *ActionConfig
+	if delta < 0 {
+		a = w.ActionRotateLeft()
+	} else {
+		a = w.ActionRotateRight()
+	}
+	deck.runAction(dev, a)
+}
+
+// runAction executes a single resolved ActionConfig.
+func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a == nil {
 		return
 	}
@@ -519,6 +549,9 @@ func (deck *Deck) triggerAction(dev *streamdeck.Device, index uint8, hold bool) 
 
 		case strings.HasPrefix(a.Device, "brightness"):
 			deck.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
+
+		case strings.HasPrefix(a.Device, "volume"):
+			deck.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
 
 		default:
 			errorLogF("Unrecognized special action: %s", a.Device)
@@ -562,7 +595,7 @@ func (deck *Deck) replaceBackground(image image.Image) error {
 }
 
 // adjustBrightness adjusts the brightness.
-func (deck *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
+func (deck *Deck) adjustBrightness(dev *Device, value string) {
 	if len(value) == 0 {
 		errorLogF("no brightness value specified")
 		return
@@ -606,4 +639,57 @@ func (deck *Deck) adjustBrightness(dev *streamdeck.Device, value string) {
 	}
 
 	*brightnessConfig = uint(brightness)
+}
+
+// adjustVolume adjusts the default PulseAudio sink's volume. value uses the
+// same "=[n]", "-[n]", "+[n]" mini-language as "brightness" actions,
+// interpreted as a percentage (0-100).
+func (deck *Deck) adjustVolume(value string) {
+	if len(value) == 0 {
+		errorLogF("no volume value specified")
+		return
+	}
+
+	current, err := pa.Volume()
+	if err != nil {
+		errorLog(err, "failed to read current volume")
+		return
+	}
+
+	v := int64(math.MinInt64)
+	if len(value) > 1 {
+		nv, err := strconv.ParseInt(value[1:], 10, 64)
+		if err == nil {
+			v = nv
+		}
+	}
+
+	switch value[0] {
+	case '=': // volume=[n]:
+	case '-': // volume-[n]:
+		if v == math.MinInt64 {
+			v = 5
+		}
+		v = int64(math.Round(float64(current)*100)) - v
+	case '+': // volume+[n]:
+		if v == math.MinInt64 {
+			v = 5
+		}
+		v = int64(math.Round(float64(current)*100)) + v
+	default:
+		v = math.MinInt64
+	}
+
+	if v == math.MinInt64 {
+		errorLogF("could not grok the volume from value '%s'", value)
+		return
+	}
+
+	if v < 0 {
+		v = 0
+	} else if v > 100 {
+		v = 100
+	}
+
+	errorLog(pa.SetVolume(float32(v)/100), "failed to set volume")
 }

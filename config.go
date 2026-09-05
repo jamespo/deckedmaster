@@ -78,6 +78,14 @@ type KeyConfig struct {
 	Action *ActionConfig `toml:"action,omitempty" json:"action,omitempty"`
 	// An action to perform when the key is held.
 	ActionHold *ActionConfig `toml:"action_hold,omitempty" json:"action_hold,omitempty"`
+	// An action to perform when an attached rotary encoder (dial) is turned
+	// counter-clockwise. Only devices with rotary encoders (e.g. the Ajazz
+	// AKP03E) ever trigger this.
+	ActionRotateLeft *ActionConfig `toml:"action_rotate_left,omitempty" json:"action_rotate_left,omitempty"`
+	// An action to perform when an attached rotary encoder (dial) is turned
+	// clockwise. Only devices with rotary encoders (e.g. the Ajazz AKP03E)
+	// ever trigger this.
+	ActionRotateRight *ActionConfig `toml:"action_rotate_right,omitempty" json:"action_rotate_right,omitempty"`
 	// A solid background color for the key.
 	BackgroundColor string `toml:"backgroundColor,omitempty" json:"backgroundColor,omitempty"`
 	// How the background color is combined with the deck background ("blend").
@@ -260,6 +268,16 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		switch vt := v.(type) {
 		case string:
 			*d = strings.Split(vt, ";")
+		case []interface{}:
+			strs := make([]string, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []string conversion", reflect.TypeOf(item))
+				}
+				strs[i] = s
+			}
+			*d = strs
 		default:
 			return fmt.Errorf("unhandled type %+v for []string conversion", reflect.TypeOf(vt))
 		}
@@ -274,6 +292,17 @@ func ConfigValue(v interface{}, dst interface{}) error {
 				clrs = append(clrs, clr)
 			}
 			*d = clrs
+		case []interface{}:
+			clrs := make([]color.Color, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []color.Color conversion", reflect.TypeOf(item))
+				}
+				clr, _ := colorful.Hex(s)
+				clrs[i] = clr
+			}
+			*d = clrs
 		default:
 			return fmt.Errorf("unhandled type %+v for []color.Color conversion", reflect.TypeOf(vt))
 		}
@@ -285,6 +314,17 @@ func ConfigValue(v interface{}, dst interface{}) error {
 			for _, durationString := range durationsString {
 				duration, _ := time.ParseDuration(durationString)
 				durations = append(durations, duration)
+			}
+			*d = durations
+		case []interface{}:
+			durations := make([]time.Duration, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []time.Duration conversion", reflect.TypeOf(item))
+				}
+				duration, _ := time.ParseDuration(s)
+				durations[i] = duration
 			}
 			*d = durations
 		default:

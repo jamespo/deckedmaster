@@ -197,6 +197,18 @@ func TestConfigValueConversions(t *testing.T) {
 		}
 	})
 
+	t.Run("string slice from TOML array", func(t *testing.T) {
+		// TOML decodes arrays into []interface{}, not the semicolon-separated
+		// string form above; multi-command widget configs rely on this path.
+		var got []string
+		if err := ConfigValue([]interface{}{"a", "b", "c"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 3 || got[0] != "a" || got[2] != "c" {
+			t.Errorf("got %#v", got)
+		}
+	})
+
 	t.Run("duration", func(t *testing.T) {
 		var got time.Duration
 		if err := ConfigValue("1h5m", &got); err != nil {
@@ -220,6 +232,36 @@ func TestConfigValueConversions(t *testing.T) {
 			if got[i] != want[i] {
 				t.Errorf("index %d: got %s, want %s", i, got[i], want[i])
 			}
+		}
+	})
+
+	t.Run("duration slice from TOML array", func(t *testing.T) {
+		var got []time.Duration
+		if err := ConfigValue([]interface{}{"5s", "10m", "30m"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		want := []time.Duration{5 * time.Second, 10 * time.Minute, 30 * time.Minute}
+		if len(got) != len(want) {
+			t.Fatalf("got %d durations, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("index %d: got %s, want %s", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("color slice from TOML array", func(t *testing.T) {
+		var got []color.Color
+		if err := ConfigValue([]interface{}{"#ff0000", "#00ff00"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("got %d colors, want 2", len(got))
+		}
+		r, g, b, _ := got[0].RGBA()
+		if r == 0 || g != 0 || b != 0 {
+			t.Errorf("index 0: expected pure red, got r=%d g=%d b=%d", r, g, b)
 		}
 	})
 
@@ -294,6 +336,44 @@ func TestKeyAndWindowConfigRoundTrip(t *testing.T) {
 	}
 	if len(w.Keys) != 1 || w.Keys[0].Widget.ID != "mediaPlayer" {
 		t.Errorf("window keys not parsed: %#v", w.Keys)
+	}
+}
+
+// Rotary encoders (e.g. on the Ajazz AKP03E) bind actions separately from a
+// regular keypress, via action_rotate_left/action_rotate_right.
+func TestRotateActionConfigRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rotate.deck")
+
+	writeFile(t, path, `
+[[keys]]
+  index = 9
+  [keys.action]
+    keycode = "Mute"
+  [keys.action_rotate_left]
+    device = "volume-5"
+  [keys.action_rotate_right]
+    device = "volume+5"
+`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+
+	if len(cfg.Keys) != 1 {
+		t.Fatalf("expected 1 key, got %d", len(cfg.Keys))
+	}
+	k := cfg.Keys[0]
+
+	if k.ActionRotateLeft == nil || k.ActionRotateLeft.Device != "volume-5" {
+		t.Errorf("action_rotate_left not parsed: %#v", k.ActionRotateLeft)
+	}
+	if k.ActionRotateRight == nil || k.ActionRotateRight.Device != "volume+5" {
+		t.Errorf("action_rotate_right not parsed: %#v", k.ActionRotateRight)
+	}
+	if k.Action == nil || k.Action.Keycode != "Mute" {
+		t.Errorf("action not parsed: %#v", k.Action)
 	}
 }
 

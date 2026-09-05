@@ -1,12 +1,37 @@
-# deckmaster
+# deckedmaster
 
-[![Latest Release](https://img.shields.io/github/release/muesli/deckmaster.svg?style=for-the-badge)](https://github.com/muesli/deckmaster/releases)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/muesli/deckmaster)
+[![Latest Release](https://img.shields.io/github/release/jamespo/deckedmaster.svg?style=for-the-badge)](https://github.com/jamespo/deckedmaster/releases)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/jamespo/deckedmaster)
 [![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/muesli/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/muesli/deckmaster/actions)
-[![Go ReportCard](https://goreportcard.com/badge/github.com/muesli/deckmaster?style=for-the-badge)](https://goreportcard.com/report/muesli/deckmaster)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/jamespo/deckedmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/jamespo/deckedmaster/actions)
+[![Go ReportCard](https://goreportcard.com/badge/github.com/jamespo/deckedmaster?style=for-the-badge)](https://goreportcard.com/report/jamespo/deckedmaster)
 
-An application to control your Elgato Stream Deck on Linux
+An application to control your Elgato Stream Deck or Ajazz AKP03E on Linux
+
+## About this fork
+
+**deckedmaster** is a fork of
+[muesli/deckmaster](https://github.com/muesli/deckmaster/) by Christian
+Muehlhaeuser, which is where all the original design and the bulk of the code
+comes from. All credit for that work belongs upstream; this fork exists to keep
+the project moving, add Ajazz AKP03E support, and integrate the pull requests
+that were left open there.
+
+Development in this fork is carried out with AI assistance, so please review
+changes with that in mind — bug reports and pull requests are very welcome.
+
+## Supported devices
+
+- Elgato Stream Deck, Stream Deck MK.2, Stream Deck Mini, Stream Deck Mini MK.2, Stream Deck XL
+- Ajazz AKP03E (both hardware revisions, USB PID `1002` and `3002`)
+
+The Ajazz AKP03E's 3 rotary encoders can be bound to actions both for
+pressing them (`keys.action`/`keys.action_hold`, same as any other key) and
+for turning them (`keys.action_rotate_left`/`keys.action_rotate_right` — see
+[Rotary encoder actions](#rotary-encoder-actions)). They have no screen, so
+there's nothing to configure under `keys.widget` for them. See
+[decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck) for a full example,
+including using the left encoder to control the volume.
 
 > **This branch integrates all pull requests that were open upstream.**
 > Some of them overlapped and had to be reconciled — most notably, the `mute`
@@ -54,25 +79,24 @@ An application to control your Elgato Stream Deck on Linux
 
 ### Packages
 
-- Arch Linux: [deckmaster](https://aur.archlinux.org/packages/deckmaster/)
-- [Packages](https://github.com/muesli/deckmaster/releases) in Alpine, Debian & RPM formats
-- [Binaries](https://github.com/muesli/deckmaster/releases) for various architectures
+- [Packages](https://github.com/jamespo/deckedmaster/releases) in Alpine, Debian & RPM formats
+- [Binaries](https://github.com/jamespo/deckedmaster/releases) for various architectures
 
 ### From source
 
 Make sure you have a working Go environment (Go 1.17 or higher is required).
 See the [install instructions](https://golang.org/doc/install.html).
 
-To install deckmaster, simply run:
+To install deckedmaster, simply run:
 
-    git clone https://github.com/muesli/deckmaster.git
-    cd deckmaster
+    git clone https://github.com/jamespo/deckedmaster.git
+    cd deckedmaster
     go build
 
 ## System Setup
 
 On Linux you need to set up some `udev` rules to be able to access the device as
-a regular user. Edit `/etc/udev/rules.d/99-streamdeck.rules` and add these lines:
+a regular user. Edit `/etc/udev/rules.d/60-streamdeck.rules` and add these lines:
 
 ```
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", TAG+="uaccess", SYMLINK+="streamdeck"
@@ -81,14 +105,59 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", TAG+="uacce
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", TAG+="uaccess", SYMLINK+="streamdeck-mini"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", TAG+="uaccess", SYMLINK+="streamdeck-xl"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="1002", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0300", ATTRS{idProduct}=="3002", TAG+="uaccess", SYMLINK+="streamdeck-akp03e"
 ```
 
 Reload the rules with `sudo udevadm control --reload-rules`. Unplug and re-plug
 the device, and you should be good to go.
 
-### Starting deckmaster automatically
+> **The `60-` filename prefix matters.** systemd applies the `uaccess` tag from
+> `/usr/lib/udev/rules.d/73-seat-late.rules`, and `udev` evaluates rule files in
+> filename order. If you put these rules in a file that sorts *after* 73 — such
+> as the `99-streamdeck.rules` that older versions of this README (and most
+> Stream Deck guides) suggest — then `TAG+="uaccess"` is applied too late, the
+> `uaccess` builtin has already run, and no ACL is ever granted. Any prefix
+> below 73 works; `60-` is a safe choice.
 
-If you want deckmaster to be started automatically upon device plugin, you can
+### Troubleshooting: `failed to initialize Stream Deck: hidapi: failed to open device`
+
+This is almost always the udev permissions above not taking effect. deckedmaster
+talks to the device through hidapi's **libusb** backend, so it opens
+`/dev/bus/usb/BBB/DDD` — *not* `/dev/hidraw*`. Adding `SUBSYSTEM=="hidraw"`
+rules will not help on its own.
+
+Find your device and check whether you actually have access to its node:
+
+```console
+$ lsusb | grep -i ajazz
+Bus 003 Device 002: ID 0300:3002 Ajazz HOTSPOTEKUSB HID DEMO
+$ getfacl /dev/bus/usb/003/002 | grep "^user:"
+user:james:rw-
+```
+
+If that `user:` line for your username is missing, the `uaccess` ACL was not
+applied. In order of likelihood:
+
+1. **Your rules file sorts after `73-seat-late.rules`** — see the note above;
+   rename it to `60-streamdeck.rules` and reload.
+2. **The rules were never reloaded or the device was never re-plugged.** Run
+   `sudo udevadm control --reload-rules`, then either re-plug or
+   `sudo udevadm trigger --action=add --subsystem-match=usb`.
+3. **You have no active local seat session.** `uaccess` only grants the ACL to a
+   user logged in on a local seat; `loginctl` should show a session for you with
+   a `SEAT` of `seat0`. Over plain SSH it will not, and you need a group-based
+   rule instead: add `MODE="0660", GROUP="plugdev"` to the rule lines and make
+   sure you're in that group (`sudo usermod -aG plugdev $USER`, then log out and
+   back in). Substitute any group you belong to if your distro has no `plugdev`.
+
+To confirm it really is permissions rather than a device problem, running
+deckedmaster once with `sudo` should get past this error. Don't leave it that way
+— fix the rules instead.
+
+### Starting deckedmaster automatically
+
+If you want deckedmaster to be started automatically upon device plugin, you can
 use systemd path activation, adding `streamdeck.path` and `streamdeck.service`
 files to `$HOME/.config/systemd/user`.
 
@@ -111,11 +180,11 @@ WantedBy=multi-user.target
 
 ```ini
 [Unit]
-Description=Deckmaster Service
+Description=Deckedmaster Service
 
 [Service]
-# adjust the path to deckmaster and .deck file to suit your needs
-ExecStart=/usr/local/bin/deckmaster --deck path-to/some.deck
+# adjust the path to deckedmaster and .deck file to suit your needs
+ExecStart=/usr/local/bin/deckedmaster --deck path-to/some.deck
 Restart=on-failure
 ExecReload=kill -HUP $MAINPID
 
@@ -134,8 +203,8 @@ systemctl --user start streamdeck.path
 
 Window tracking (the `recentWindow` widget and
 [per-window key overrides](#per-window-key-overrides)) uses X11 by default. On
-Wayland, X11 window tracking is unavailable, so deckmaster instead exposes a
-DBus service at `io.github.muesli.DeckMaster` and waits for the compositor to
+Wayland, X11 window tracking is unavailable, so deckedmaster instead exposes a
+DBus service at `io.github.jamespo.DeckedMaster` and waits for the compositor to
 tell it which window is active.
 
 For KWin (KDE Plasma), a small script that sends those notifications ships in
@@ -143,7 +212,7 @@ the `kwin/` directory. Install and enable it with:
 
 ```bash
 kpackagetool6 --type=KWin/Script --install kwin
-kwriteconfig6 --file kwinrc --group Plugins --key deckmasterEnabled true
+kwriteconfig6 --file kwinrc --group Plugins --key deckedmasterEnabled true
 qdbus6 org.kde.KWin /KWin reconfigure
 ```
 
@@ -157,32 +226,32 @@ title and id.
 
 ## Usage
 
-Start `deckmaster` with the initial deck configuration you want to load:
+Start `deckedmaster` with the initial deck configuration you want to load:
 
 ```bash
-deckmaster -deck deck/main.deck
+deckedmaster -deck deck/main.deck
 ```
 
 You can control the brightness, in percent:
 
 ```bash
-deckmaster -brightness 50
+deckedmaster -brightness 50
 ```
 
 Control a specific streamdeck:
 
 ```bash
-deckmaster -device [serial number]
+deckedmaster -device [serial number]
 ```
 
 Set a sleep timeout after which the screen gets turned off:
 
 ```bash
-deckmaster -sleep 10m
+deckedmaster -sleep 10m
 ```
 
 ```bash
-deckmaster -rest-listen [localhost:4321] [-rest-trusted-proxies [10.0.0.1,10.0.0.2]] [-rest-docs]
+deckedmaster -rest-listen [localhost:4321] [-rest-trusted-proxies [10.0.0.1,10.0.0.2]] [-rest-docs]
 ```
 
 Set an interface/ip and/or port to start a REST server on.
@@ -193,7 +262,7 @@ The interactive Swagger documentation will be available as `/docs` if `-rest-doc
 
 ## Configuration
 
-You can find a few example configurations in the [decks](https://github.com/muesli/deckmaster/tree/master/decks)
+You can find a few example configurations in the [decks](https://github.com/jamespo/deckedmaster/tree/master/decks)
 directory. Edit them to your needs!
 
 ### Background Image
@@ -252,7 +321,7 @@ Window tracking needs either X11 or the bundled KWin script (see
 
 ### Automatic configuration reloading
 
-deckmaster watches the active deck file and reloads it automatically when it
+deckedmaster watches the active deck file and reloads it automatically when it
 changes on disk, so you can edit a `.deck` file and see the result immediately.
 If the edited configuration is invalid, the previous one is kept and the error
 is printed to stderr.
@@ -260,7 +329,7 @@ is printed to stderr.
 You can still trigger a reload explicitly by sending `SIGHUP`:
 
 ```bash
-kill -HUP $(pidof deckmaster)
+kill -HUP $(pidof deckedmaster)
 ```
 
 ### Widgets
@@ -372,7 +441,7 @@ speakers/headphones).
 
 ##### Audio widgets
 
-deckmaster ships three PulseAudio widgets that overlap slightly:
+deckedmaster ships three PulseAudio widgets that overlap slightly:
 
 | Widget | Controls | Comes from |
 | --- | --- | --- |
@@ -485,8 +554,8 @@ The supported location types can be found [here](http://wttr.in/:help). The unit
 has to be either `celsius` or `fahrenheit`. If `flatten` is `true` all opaque
 pixels of the condition icon will have the color `color`. In case `theme` is set
 corresponding icons with correct names need to be placed in
-`~/.local/share/deckmaster/themes/[theme]`. The default icons with their
-respective names can be found [here](https://github.com/muesli/deckmaster/tree/master/assets/weather).
+`~/.local/share/deckedmaster/themes/[theme]`. The default icons with their
+respective names can be found [here](https://github.com/jamespo/deckedmaster/tree/master/assets/weather).
 
 #### Timer
 
@@ -614,7 +683,25 @@ media player.
 
 You can hook up any key with several actions. A regular keypress will trigger
 the widget's configured `keys.action`, while holding the key will trigger
-`keys.action_hold`.
+`keys.action_hold`. Any of the actions below can be used in any of these
+slots.
+
+#### Rotary encoder actions
+
+Devices with rotary encoders/dials (currently just the Ajazz AKP03E) let you
+bind separate actions to turning them, independent of pressing them:
+
+```toml
+[keys.action_rotate_left]
+  device = "volume-5"
+[keys.action_rotate_right]
+  device = "volume+5"
+```
+
+`keys.action_rotate_left` fires once per detent turned counter-clockwise,
+`keys.action_rotate_right` once per detent turned clockwise. Since the
+encoders have no screen, a key bound this way usually has no `keys.widget`
+at all - see [decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck).
 
 #### Switch deck
 
@@ -628,6 +715,14 @@ the widget's configured `keys.action`, while holding the key will trigger
 ```toml
 [keys.action]
   exec = "some_command --with-parameters"
+```
+
+The command is not run through a shell, but a leading `~` in the command or in
+any of its parameters is expanded to your home directory:
+
+```toml
+[keys.action]
+  exec = "~/.config/deckedmaster/decks/sonos/bin/sonos-deck favourite-scroll +1"
 ```
 
 #### Emulate key-presses
@@ -644,7 +739,7 @@ Emulate a series of key-presses with delay in between:
   keycode = "Leftctrl-X+500 / Leftctrl-V / Num1"
 ```
 
-A list of available `keycodes` can be found here: [keycodes](https://github.com/muesli/deckmaster/blob/master/keycodes.go)
+A list of available `keycodes` can be found here: [keycodes](https://github.com/jamespo/deckedmaster/blob/master/keycodes.go)
 
 #### Paste to clipboard
 
@@ -694,6 +789,15 @@ pressed:
   device = "sleep"
 ```
 
+Increase/decrease/set the default PulseAudio sink's volume (percent, same
+`+`/`-`/`=` syntax as `brightness`, requires PulseAudio). If no value is
+specified for `+`/`-`, it changes by 5%:
+
+```toml
+[keys.action]
+  device = "volume+5"   # or "volume-5", or "volume=50"
+```
+
 #### Media player actions
 
 Control playback:
@@ -720,12 +824,12 @@ the previous player.
 
 * [deckmaster-emojis](https://github.com/muesli/deckmaster-emojis), an Emoji keyboard deck
 * [deckmaster-helldivers2](https://github.com/boj/deckmaster-helldivers2), a deck for calling down Helldivers 2 game stratagems
-
-Made your own useful decks? Submit a pull request!
-
+* [deckedmaster-decks](https://github.com/jamespo/deckedmaster-decks), some ajazz-specific decks for sonos & niri control
+  
 ## Feedback
 
-Got some feedback or suggestions? Please open an issue or drop me a note!
+Got some feedback or suggestions? Please
+[open an issue](https://github.com/jamespo/deckedmaster/issues).
 
-* [Twitter](https://twitter.com/mueslix)
-* [The Fediverse](https://mastodon.social/@fribbledom)
+Feedback about the original project belongs upstream at
+[muesli/deckmaster](https://github.com/muesli/deckmaster/issues).
