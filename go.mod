@@ -13,7 +13,7 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/gwatts/gin-adapter v1.0.0
-	github.com/jezek/xgb v1.3.0
+	github.com/jezek/xgb v1.3.1
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/jfreymuth/pulse v0.1.3
 	github.com/jub0bs/fcors v0.5.1
