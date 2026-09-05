@@ -449,7 +449,7 @@ func (a *ajazzDevice) write(buf []byte) error {
 // ReadKeys returns a channel emitting key press/release events, translating
 // the device's raw input codes (buttons, blank buttons and encoder presses)
 // into Key events. Encoder rotation isn't mapped to a Key event, since
-// deckmaster has no concept of a continuous/relative input; it's logged at
+// deckedmaster has no concept of a continuous/relative input; it's logged at
 // verbose level instead.
 func (a *ajazzDevice) ReadKeys() (chan Key, error) {
 	a.mu.Lock()

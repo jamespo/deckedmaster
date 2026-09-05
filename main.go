@@ -356,7 +356,7 @@ func run() error {
 	}
 
 	// initialize virtual keyboard
-	keyboard, e = uinput.CreateKeyboard("/dev/uinput", []byte("deckmaster"))
+	keyboard, e = uinput.CreateKeyboard("/dev/uinput", []byte("deckedmaster"))
 	if e != nil {
 		errorLog(e, "failed to create virtual input device (/dev/uinput)")
 		errorLogF("Emulating keyboard events will be disabled!")
@@ -417,7 +417,7 @@ func main() {
 			Version = "(built from source)"
 		}
 
-		fmt.Printf("deckmaster %s", Version)
+		fmt.Printf("deckedmaster %s", Version)
 		if len(CommitSHA) > 0 {
 			fmt.Printf(" (%s)", CommitSHA)
 		}

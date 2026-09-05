@@ -244,7 +244,7 @@ func loadImage(path string) (image.Image, error) {
 }
 
 func loadThemeImage(theme string, img string) (image.Image, error) {
-	path := filepath.Join("~", ".local", "share", "deckmaster", "themes", theme, img+".png")
+	path := filepath.Join("~", ".local", "share", "deckedmaster", "themes", theme, img+".png")
 	abs, err := expandPath("", path)
 	if err != nil {
 		return nil, err

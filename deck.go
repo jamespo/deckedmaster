@@ -75,7 +75,7 @@ func LoadDeck(dev *Device, base string, deck string) (*Deck, error) {
 	}
 
 	if e := d.watchForChanges(dev, base, deck, path); e != nil {
-		// a missing file watch is not fatal, deckmaster just won't auto-reload
+		// a missing file watch is not fatal, deckedmaster just won't auto-reload
 		errorLog(e, "can't watch deck for changes")
 	}
 

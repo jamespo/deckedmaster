@@ -19,7 +19,7 @@ type Key struct {
 	Rotation int8
 }
 
-// deviceBackend is implemented by every piece of hardware deckmaster can
+// deviceBackend is implemented by every piece of hardware deckedmaster can
 // drive. Device wraps a backend and exposes the fields/methods the rest of
 // the application uses, independent of the actual hardware underneath.
 type deviceBackend interface {

@@ -83,7 +83,7 @@ func loadFont(name string) (*truetype.Font, error) {
 	return freetype.ParseFont(ttf)
 }
 
-// loadFonts loads the fonts deckmaster renders widgets with. It is called from
+// loadFonts loads the fonts deckedmaster renders widgets with. It is called from
 // main, so that merely importing the package (e.g. when running tests) does not
 // require the fonts to be installed.
 func loadFonts() error {
