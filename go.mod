@@ -21,7 +21,7 @@ require (
 	github.com/jub0bs/fcors v0.5.1
 	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8
 	github.com/lesismal/nbio v1.3.17
-	github.com/lucasb-eyer/go-colorful v1.3.0
+	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/muesli/streamdeck v0.4.0
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
