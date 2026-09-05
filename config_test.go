@@ -197,6 +197,18 @@ func TestConfigValueConversions(t *testing.T) {
 		}
 	})
 
+	t.Run("string slice from TOML array", func(t *testing.T) {
+		// TOML decodes arrays into []interface{}, not the semicolon-separated
+		// string form above; multi-command widget configs rely on this path.
+		var got []string
+		if err := ConfigValue([]interface{}{"a", "b", "c"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 3 || got[0] != "a" || got[2] != "c" {
+			t.Errorf("got %#v", got)
+		}
+	})
+
 	t.Run("duration", func(t *testing.T) {
 		var got time.Duration
 		if err := ConfigValue("1h5m", &got); err != nil {
@@ -220,6 +232,36 @@ func TestConfigValueConversions(t *testing.T) {
 			if got[i] != want[i] {
 				t.Errorf("index %d: got %s, want %s", i, got[i], want[i])
 			}
+		}
+	})
+
+	t.Run("duration slice from TOML array", func(t *testing.T) {
+		var got []time.Duration
+		if err := ConfigValue([]interface{}{"5s", "10m", "30m"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		want := []time.Duration{5 * time.Second, 10 * time.Minute, 30 * time.Minute}
+		if len(got) != len(want) {
+			t.Fatalf("got %d durations, want %d", len(got), len(want))
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("index %d: got %s, want %s", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("color slice from TOML array", func(t *testing.T) {
+		var got []color.Color
+		if err := ConfigValue([]interface{}{"#ff0000", "#00ff00"}, &got); err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("got %d colors, want 2", len(got))
+		}
+		r, g, b, _ := got[0].RGBA()
+		if r == 0 || g != 0 || b != 0 {
+			t.Errorf("index 0: expected pure red, got r=%d g=%d b=%d", r, g, b)
 		}
 	})
 

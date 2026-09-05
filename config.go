@@ -268,6 +268,16 @@ func ConfigValue(v interface{}, dst interface{}) error {
 		switch vt := v.(type) {
 		case string:
 			*d = strings.Split(vt, ";")
+		case []interface{}:
+			strs := make([]string, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []string conversion", reflect.TypeOf(item))
+				}
+				strs[i] = s
+			}
+			*d = strs
 		default:
 			return fmt.Errorf("unhandled type %+v for []string conversion", reflect.TypeOf(vt))
 		}
@@ -282,6 +292,17 @@ func ConfigValue(v interface{}, dst interface{}) error {
 				clrs = append(clrs, clr)
 			}
 			*d = clrs
+		case []interface{}:
+			clrs := make([]color.Color, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []color.Color conversion", reflect.TypeOf(item))
+				}
+				clr, _ := colorful.Hex(s)
+				clrs[i] = clr
+			}
+			*d = clrs
 		default:
 			return fmt.Errorf("unhandled type %+v for []color.Color conversion", reflect.TypeOf(vt))
 		}
@@ -293,6 +314,17 @@ func ConfigValue(v interface{}, dst interface{}) error {
 			for _, durationString := range durationsString {
 				duration, _ := time.ParseDuration(durationString)
 				durations = append(durations, duration)
+			}
+			*d = durations
+		case []interface{}:
+			durations := make([]time.Duration, len(vt))
+			for i, item := range vt {
+				s, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("unhandled element type %+v for []time.Duration conversion", reflect.TypeOf(item))
+				}
+				duration, _ := time.ParseDuration(s)
+				durations[i] = duration
 			}
 			*d = durations
 		default:
