@@ -17,7 +17,7 @@ require (
 	github.com/gwatts/gin-adapter v1.0.0
 	github.com/jezek/xgb v1.3.0
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
-	github.com/jfreymuth/pulse v0.1.0
+	github.com/jfreymuth/pulse v0.1.3
 	github.com/jub0bs/fcors v0.5.1
 	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8
 	github.com/lesismal/nbio v1.3.17
