@@ -78,6 +78,14 @@ type KeyConfig struct {
 	Action *ActionConfig `toml:"action,omitempty" json:"action,omitempty"`
 	// An action to perform when the key is held.
 	ActionHold *ActionConfig `toml:"action_hold,omitempty" json:"action_hold,omitempty"`
+	// An action to perform when an attached rotary encoder (dial) is turned
+	// counter-clockwise. Only devices with rotary encoders (e.g. the Ajazz
+	// AKP03E) ever trigger this.
+	ActionRotateLeft *ActionConfig `toml:"action_rotate_left,omitempty" json:"action_rotate_left,omitempty"`
+	// An action to perform when an attached rotary encoder (dial) is turned
+	// clockwise. Only devices with rotary encoders (e.g. the Ajazz AKP03E)
+	// ever trigger this.
+	ActionRotateRight *ActionConfig `toml:"action_rotate_right,omitempty" json:"action_rotate_right,omitempty"`
 	// A solid background color for the key.
 	BackgroundColor string `toml:"backgroundColor,omitempty" json:"backgroundColor,omitempty"`
 	// How the background color is combined with the deck background ("blend").

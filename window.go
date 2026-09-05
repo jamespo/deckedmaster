@@ -1,10 +1,6 @@
 package main
 
-import (
-	"github.com/muesli/streamdeck"
-)
-
-func handleActiveWindowChanged(dev *streamdeck.Device, event ActiveWindowChangedEvent) {
+func handleActiveWindowChanged(dev *Device, event ActiveWindowChangedEvent) {
 	verboseLog("Active window changed to %s (%d, %s)",
 		event.Window.Class, event.Window.ID, event.Window.Name)
 

@@ -15,7 +15,6 @@ import (
 
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
-	"github.com/muesli/streamdeck"
 	"github.com/nfnt/resize"
 )
 
@@ -32,20 +31,24 @@ type Widget interface {
 	reloadBackground()
 	Action() *ActionConfig
 	ActionHold() *ActionConfig
+	ActionRotateLeft() *ActionConfig
+	ActionRotateRight() *ActionConfig
 	TriggerAction(hold bool)
 	Close() error
 }
 
 // BaseWidget provides common functionality required by all widgets.
 type BaseWidget struct {
-	base       string
-	key        uint8
-	action     *ActionConfig
-	actionHold *ActionConfig
-	dev        *streamdeck.Device
-	background image.Image
-	lastUpdate time.Time
-	interval   time.Duration
+	base              string
+	key               uint8
+	action            *ActionConfig
+	actionHold        *ActionConfig
+	actionRotateLeft  *ActionConfig
+	actionRotateRight *ActionConfig
+	dev               *Device
+	background        image.Image
+	lastUpdate        time.Time
+	interval          time.Duration
 }
 
 // Key returns the key a widget is mapped to.
@@ -61,6 +64,18 @@ func (w *BaseWidget) Action() *ActionConfig {
 // ActionHold returns the associated ActionConfig for long presses.
 func (w *BaseWidget) ActionHold() *ActionConfig {
 	return w.actionHold
+}
+
+// ActionRotateLeft returns the associated ActionConfig for a rotary encoder
+// turned counter-clockwise.
+func (w *BaseWidget) ActionRotateLeft() *ActionConfig {
+	return w.actionRotateLeft
+}
+
+// ActionRotateRight returns the associated ActionConfig for a rotary encoder
+// turned clockwise.
+func (w *BaseWidget) ActionRotateRight() *ActionConfig {
+	return w.actionRotateRight
 }
 
 // TriggerAction gets called when a button is pressed.
@@ -107,20 +122,22 @@ func (w *BaseWidget) reloadBackground() {
 }
 
 // NewBaseWidget returns a new BaseWidget.
-func NewBaseWidget(dev *streamdeck.Device, base string, index uint8, action, actionHold *ActionConfig, bg image.Image) *BaseWidget {
+func NewBaseWidget(dev *Device, base string, index uint8, action, actionHold, actionRotateLeft, actionRotateRight *ActionConfig, bg image.Image) *BaseWidget {
 	return &BaseWidget{
-		base:       base,
-		key:        index,
-		action:     action,
-		actionHold: actionHold,
-		dev:        dev,
-		background: bg,
+		base:              base,
+		key:               index,
+		action:            action,
+		actionHold:        actionHold,
+		actionRotateLeft:  actionRotateLeft,
+		actionRotateRight: actionRotateRight,
+		dev:               dev,
+		background:        bg,
 	}
 }
 
 // NewWidget initializes a widget.
-func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image) (Widget, error) {
-	bw := NewBaseWidget(dev, base, kc.Index, kc.Action, kc.ActionHold, bg)
+func NewWidget(dev *Device, base string, kc KeyConfig, bg image.Image) (Widget, error) {
+	bw := NewBaseWidget(dev, base, kc.Index, kc.Action, kc.ActionHold, kc.ActionRotateLeft, kc.ActionRotateRight, bg)
 
 	switch kc.Widget.ID {
 	case "button":
@@ -188,7 +205,7 @@ func NewWidget(dev *streamdeck.Device, base string, kc KeyConfig, bg image.Image
 }
 
 // renders the widget including its background image.
-func (w *BaseWidget) render(dev *streamdeck.Device, fg image.Image) error {
+func (w *BaseWidget) render(dev *Device, fg image.Image) error {
 	w.lastUpdate = time.Now()
 
 	pixels := int(dev.Pixels)

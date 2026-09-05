@@ -1,0 +1,107 @@
+# Example deck for the Ajazz AKP03E (3x3 button grid + 3 rotary encoders).
+#
+# Keys 0-5 have LCD screens. Keys 6-8 are plain buttons with no screen (the
+# bottom row). Keys 9-11 are the 3 rotary encoders: pressing one is a normal
+# "action", turning one fires "action_rotate_left"/"action_rotate_right"
+# instead - so they don't need a [keys.widget] section, just actions.
+
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "time"
+    [keys.widget.config]
+      format = "%H;%i;%s"
+      font = "bold;regular;thin"
+
+[[keys]]
+  index = 1
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "cpu"
+
+[[keys]]
+  index = 2
+  [keys.widget]
+    id = "top"
+    [keys.widget.config]
+      mode = "memory"
+
+[[keys]]
+  index = 3
+  [keys.widget]
+    id = "weather"
+
+[[keys]]
+  index = 4
+  [keys.widget]
+    id = "mute"
+    [keys.widget.config]
+      stream = "sink"
+
+[[keys]]
+  index = 5
+  [keys.widget]
+    id = "microphoneMute"
+    [keys.widget.config]
+      icon = "assets/microphone-rec.png"
+      iconMute = "assets/microphone-mute.png"
+
+[[keys]]
+  index = 6
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-previous.png"
+      label = "Dim"
+  [keys.action]
+    device = "brightness-10"
+
+[[keys]]
+  index = 7
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Sleep"
+  [keys.action]
+    device = "sleep"
+
+[[keys]]
+  index = 8
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-next.png"
+      label = "Brighten"
+  [keys.action]
+    device = "brightness+10"
+
+# Left rotary encoder: turn to change the volume, press to mute/unmute.
+# This is the main thing this deck demonstrates - "device = volume+N/-N"
+# adjusts the default PulseAudio sink's volume by N percent per detent.
+[[keys]]
+  index = 9
+  [keys.action]
+    keycode = "Mute"
+  [keys.action_rotate_left]
+    device = "volume-5"
+  [keys.action_rotate_right]
+    device = "volume+5"
+
+# Middle rotary encoder: press to play/pause, turn to skip tracks.
+[[keys]]
+  index = 10
+  [keys.action]
+    keycode = "PlayPause"
+  [keys.action_rotate_left]
+    keycode = "PreviousSong"
+  [keys.action_rotate_right]
+    keycode = "NextSong"
+
+# Right rotary encoder: turn to adjust screen brightness.
+[[keys]]
+  index = 11
+  [keys.action_rotate_left]
+    device = "brightness-5"
+  [keys.action_rotate_right]
+    device = "brightness+5"
