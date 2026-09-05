@@ -1,0 +1,13 @@
+[Unit]
+Description=Deckedmaster Service
+
+[Service]
+# adjust the path to deckedmaster and .deck file to suit your needs
+# ExecStartPre not always needed
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/bin/deckedmaster -sleep 3m --deck /home/james/.config/deckedmaster/decks/niri/niri.deck
+Restart=on-failure
+ExecReload=kill -HUP $MAINPID
+
+[Install]
+WantedBy=default.target
