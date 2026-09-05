@@ -26,7 +26,7 @@ const (
 // permissions, containers, ...), in which case children simply stay in our own
 // control group.
 var childProcessCGroup = sync.OnceValue(func() string {
-	return createNewCGroup("deckmaster.scope")
+	return createNewCGroup("deckedmaster.scope")
 })
 
 func runningCGroup() (string, error) {

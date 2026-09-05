@@ -1,4 +1,4 @@
-// Package main Deckmaster API implements a REST API for controlling Stream Decks.
+// Package main Deckedmaster API implements a REST API for controlling Stream Decks.
 //
 // Swagger file generated from source by the go-swagger package.
 //

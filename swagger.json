@@ -12,7 +12,7 @@
   "swagger": "2.0",
   "info": {
     "description": "Swagger file generated from source by the go-swagger package.\n\n`swagger generate spec -o swagger.json -i swagger-overrides.yml -m`\n\nhttps://goswagger.io/\nhttps://github.com/go-swagger/go-swagger/\n\nAllows controlling a single Stream Deck from anywhere using a REST-like API.\nThe device is modeled using four main concepts:\n\nThe device:\nHolds read-only information about the connected device itself, such as\nthe unique serial number, key layout, awake state, and brightness.\nSome properties can be changed to immediately update the device state.\n\nThe deck:\nHolds the configuration initially loaded from a deck file. Properties can\nbe completely or partially updated to reload the correspodning widget(s)\nwith the new confiuration. Only one deck is loaded at a time.\n\nA Key configuration:\nHolds the configuration for a single key. Updating it immediately reloads\nthe corresponding widget with the new configuration. A key is referenced\nusing its one-dimensional index number, or a string name which must be\nunique per deck. Some keys may not yet have a configuration.\n\nA widget:\nHolds the active widget state of a configured key. The widget state\ncannot be updated directly and contents vary by type of widget.",
-    "title": "Deckmaster API implements a REST API for controlling Stream Decks.",
+    "title": "Deckedmaster API implements a REST API for controlling Stream Decks.",
     "version": "1.0.0"
   },
   "host": "localhost:4321",
@@ -528,7 +528,7 @@
           "x-go-name": "Paste"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "ApiError": {
       "type": "object",
@@ -551,7 +551,7 @@
         }
       },
       "x-go-name": "apiError",
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "DBusConfig": {
       "type": "object",
@@ -574,7 +574,7 @@
           "x-go-name": "Value"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "DeckConfig": {
       "type": "object",
@@ -594,7 +594,7 @@
           "x-go-name": "Parent"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "DeckState": {
       "type": "object",
@@ -620,7 +620,7 @@
         }
       },
       "x-go-name": "apiDeck",
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "DeviceStateRead": {
       "type": "object",
@@ -695,7 +695,7 @@
         }
       },
       "x-go-name": "jsonDeviceRead",
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "DeviceStateWrite": {
       "type": "object",
@@ -724,7 +724,7 @@
         }
       },
       "x-go-name": "jsonDeviceWrite",
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "KeyConfig": {
       "type": "object",
@@ -751,7 +751,7 @@
           "$ref": "#/definitions/WidgetConfig"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "Keys": {
       "type": "array",
@@ -759,7 +759,7 @@
       "items": {
         "$ref": "#/definitions/KeyConfig"
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "Widget": {
       "type": "object",
@@ -782,7 +782,7 @@
           "type": "string"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "WidgetConfig": {
       "type": "object",
@@ -806,7 +806,7 @@
           "x-go-name": "Interval"
         }
       },
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     },
     "WidgetState": {
       "type": "object",
@@ -828,7 +828,7 @@
         }
       },
       "x-go-name": "apiWidget",
-      "x-go-package": "github.com/muesli/deckmaster"
+      "x-go-package": "github.com/jamespo/deckedmaster"
     }
   }
 }

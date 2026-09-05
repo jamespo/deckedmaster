@@ -6,8 +6,8 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - id: deckmaster
-    binary: deckmaster
+  - id: deckedmaster
+    binary: deckedmaster
     flags:
       - -trimpath
     ldflags: -s -w -X main.Version={{ .Version }} -X main.CommitSHA={{ .Commit }}
@@ -34,11 +34,11 @@ archives:
 
 nfpms:
   - ids:
-      - deckmaster
-    vendor: muesli
-    homepage: "https://fribbledom.com/"
-    maintainer: "Christian Muehlhaeuser <muesli@gmail.com>"
-    description: "An application to control your Elgato Stream Deck"
+      - deckedmaster
+    vendor: jamespo
+    homepage: "https://github.com/jamespo/deckedmaster"
+    maintainer: "James Powell <jamespo@gmail.com>"
+    description: "An application to control your Elgato Stream Deck or Ajazz AKP03E"
     license: MIT
     formats:
       - apk

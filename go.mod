@@ -1,4 +1,4 @@
-module github.com/muesli/deckmaster
+module github.com/jamespo/deckedmaster
 
 go 1.24.0
 

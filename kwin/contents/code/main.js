@@ -1,4 +1,4 @@
-const service = "io.github.muesli.DeckMaster";
+const service = "io.github.jamespo.DeckedMaster";
 const path = "/Monitor";
 const method = "ActiveWindowChanged";
 
@@ -14,4 +14,4 @@ function activeWindowChanged(window) {
 const signal = workspace.windowActivated ?? workspace.clientActivated
 signal.connect(activeWindowChanged);
 
-print("enabled: DeckMaster");
+print("enabled: DeckedMaster");

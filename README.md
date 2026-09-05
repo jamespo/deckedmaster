@@ -1,12 +1,24 @@
-# deckmaster
+# deckedmaster
 
-[![Latest Release](https://img.shields.io/github/release/muesli/deckmaster.svg?style=for-the-badge)](https://github.com/muesli/deckmaster/releases)
-[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/muesli/deckmaster)
+[![Latest Release](https://img.shields.io/github/release/jamespo/deckedmaster.svg?style=for-the-badge)](https://github.com/jamespo/deckedmaster/releases)
+[![Go Doc](https://img.shields.io/badge/godoc-reference-blue.svg?style=for-the-badge)](https://pkg.go.dev/github.com/jamespo/deckedmaster)
 [![Software License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](/LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/muesli/deckmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/muesli/deckmaster/actions)
-[![Go ReportCard](https://goreportcard.com/badge/github.com/muesli/deckmaster?style=for-the-badge)](https://goreportcard.com/report/muesli/deckmaster)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/jamespo/deckedmaster/build.yml?branch=master&style=for-the-badge)](https://github.com/jamespo/deckedmaster/actions)
+[![Go ReportCard](https://goreportcard.com/badge/github.com/jamespo/deckedmaster?style=for-the-badge)](https://goreportcard.com/report/jamespo/deckedmaster)
 
 An application to control your Elgato Stream Deck or Ajazz AKP03E on Linux
+
+## About this fork
+
+**deckedmaster** is a fork of
+[muesli/deckmaster](https://github.com/muesli/deckmaster/) by Christian
+Muehlhaeuser, which is where all the original design and the bulk of the code
+comes from. All credit for that work belongs upstream; this fork exists to keep
+the project moving, add Ajazz AKP03E support, and integrate the pull requests
+that were left open there.
+
+Development in this fork is carried out with AI assistance, so please review
+changes with that in mind — bug reports and pull requests are very welcome.
 
 ## Supported devices
 
@@ -67,19 +79,18 @@ including using the left encoder to control the volume.
 
 ### Packages
 
-- Arch Linux: [deckmaster](https://aur.archlinux.org/packages/deckmaster/)
-- [Packages](https://github.com/muesli/deckmaster/releases) in Alpine, Debian & RPM formats
-- [Binaries](https://github.com/muesli/deckmaster/releases) for various architectures
+- [Packages](https://github.com/jamespo/deckedmaster/releases) in Alpine, Debian & RPM formats
+- [Binaries](https://github.com/jamespo/deckedmaster/releases) for various architectures
 
 ### From source
 
 Make sure you have a working Go environment (Go 1.17 or higher is required).
 See the [install instructions](https://golang.org/doc/install.html).
 
-To install deckmaster, simply run:
+To install deckedmaster, simply run:
 
-    git clone https://github.com/muesli/deckmaster.git
-    cd deckmaster
+    git clone https://github.com/jamespo/deckedmaster.git
+    cd deckedmaster
     go build
 
 ## System Setup
@@ -111,7 +122,7 @@ the device, and you should be good to go.
 
 ### Troubleshooting: `failed to initialize Stream Deck: hidapi: failed to open device`
 
-This is almost always the udev permissions above not taking effect. deckmaster
+This is almost always the udev permissions above not taking effect. deckedmaster
 talks to the device through hidapi's **libusb** backend, so it opens
 `/dev/bus/usb/BBB/DDD` — *not* `/dev/hidraw*`. Adding `SUBSYSTEM=="hidraw"`
 rules will not help on its own.
@@ -141,12 +152,12 @@ applied. In order of likelihood:
    back in). Substitute any group you belong to if your distro has no `plugdev`.
 
 To confirm it really is permissions rather than a device problem, running
-deckmaster once with `sudo` should get past this error. Don't leave it that way
+deckedmaster once with `sudo` should get past this error. Don't leave it that way
 — fix the rules instead.
 
-### Starting deckmaster automatically
+### Starting deckedmaster automatically
 
-If you want deckmaster to be started automatically upon device plugin, you can
+If you want deckedmaster to be started automatically upon device plugin, you can
 use systemd path activation, adding `streamdeck.path` and `streamdeck.service`
 files to `$HOME/.config/systemd/user`.
 
@@ -169,11 +180,11 @@ WantedBy=multi-user.target
 
 ```ini
 [Unit]
-Description=Deckmaster Service
+Description=Deckedmaster Service
 
 [Service]
-# adjust the path to deckmaster and .deck file to suit your needs
-ExecStart=/usr/local/bin/deckmaster --deck path-to/some.deck
+# adjust the path to deckedmaster and .deck file to suit your needs
+ExecStart=/usr/local/bin/deckedmaster --deck path-to/some.deck
 Restart=on-failure
 ExecReload=kill -HUP $MAINPID
 
@@ -192,8 +203,8 @@ systemctl --user start streamdeck.path
 
 Window tracking (the `recentWindow` widget and
 [per-window key overrides](#per-window-key-overrides)) uses X11 by default. On
-Wayland, X11 window tracking is unavailable, so deckmaster instead exposes a
-DBus service at `io.github.muesli.DeckMaster` and waits for the compositor to
+Wayland, X11 window tracking is unavailable, so deckedmaster instead exposes a
+DBus service at `io.github.jamespo.DeckedMaster` and waits for the compositor to
 tell it which window is active.
 
 For KWin (KDE Plasma), a small script that sends those notifications ships in
@@ -201,7 +212,7 @@ the `kwin/` directory. Install and enable it with:
 
 ```bash
 kpackagetool6 --type=KWin/Script --install kwin
-kwriteconfig6 --file kwinrc --group Plugins --key deckmasterEnabled true
+kwriteconfig6 --file kwinrc --group Plugins --key deckedmasterEnabled true
 qdbus6 org.kde.KWin /KWin reconfigure
 ```
 
@@ -215,32 +226,32 @@ title and id.
 
 ## Usage
 
-Start `deckmaster` with the initial deck configuration you want to load:
+Start `deckedmaster` with the initial deck configuration you want to load:
 
 ```bash
-deckmaster -deck deck/main.deck
+deckedmaster -deck deck/main.deck
 ```
 
 You can control the brightness, in percent:
 
 ```bash
-deckmaster -brightness 50
+deckedmaster -brightness 50
 ```
 
 Control a specific streamdeck:
 
 ```bash
-deckmaster -device [serial number]
+deckedmaster -device [serial number]
 ```
 
 Set a sleep timeout after which the screen gets turned off:
 
 ```bash
-deckmaster -sleep 10m
+deckedmaster -sleep 10m
 ```
 
 ```bash
-deckmaster -rest-listen [localhost:4321] [-rest-trusted-proxies [10.0.0.1,10.0.0.2]] [-rest-docs]
+deckedmaster -rest-listen [localhost:4321] [-rest-trusted-proxies [10.0.0.1,10.0.0.2]] [-rest-docs]
 ```
 
 Set an interface/ip and/or port to start a REST server on.
@@ -251,7 +262,7 @@ The interactive Swagger documentation will be available as `/docs` if `-rest-doc
 
 ## Configuration
 
-You can find a few example configurations in the [decks](https://github.com/muesli/deckmaster/tree/master/decks)
+You can find a few example configurations in the [decks](https://github.com/jamespo/deckedmaster/tree/master/decks)
 directory. Edit them to your needs!
 
 ### Background Image
@@ -310,7 +321,7 @@ Window tracking needs either X11 or the bundled KWin script (see
 
 ### Automatic configuration reloading
 
-deckmaster watches the active deck file and reloads it automatically when it
+deckedmaster watches the active deck file and reloads it automatically when it
 changes on disk, so you can edit a `.deck` file and see the result immediately.
 If the edited configuration is invalid, the previous one is kept and the error
 is printed to stderr.
@@ -318,7 +329,7 @@ is printed to stderr.
 You can still trigger a reload explicitly by sending `SIGHUP`:
 
 ```bash
-kill -HUP $(pidof deckmaster)
+kill -HUP $(pidof deckedmaster)
 ```
 
 ### Widgets
@@ -430,7 +441,7 @@ speakers/headphones).
 
 ##### Audio widgets
 
-deckmaster ships three PulseAudio widgets that overlap slightly:
+deckedmaster ships three PulseAudio widgets that overlap slightly:
 
 | Widget | Controls | Comes from |
 | --- | --- | --- |
@@ -543,8 +554,8 @@ The supported location types can be found [here](http://wttr.in/:help). The unit
 has to be either `celsius` or `fahrenheit`. If `flatten` is `true` all opaque
 pixels of the condition icon will have the color `color`. In case `theme` is set
 corresponding icons with correct names need to be placed in
-`~/.local/share/deckmaster/themes/[theme]`. The default icons with their
-respective names can be found [here](https://github.com/muesli/deckmaster/tree/master/assets/weather).
+`~/.local/share/deckedmaster/themes/[theme]`. The default icons with their
+respective names can be found [here](https://github.com/jamespo/deckedmaster/tree/master/assets/weather).
 
 #### Timer
 
@@ -728,7 +739,7 @@ Emulate a series of key-presses with delay in between:
   keycode = "Leftctrl-X+500 / Leftctrl-V / Num1"
 ```
 
-A list of available `keycodes` can be found here: [keycodes](https://github.com/muesli/deckmaster/blob/master/keycodes.go)
+A list of available `keycodes` can be found here: [keycodes](https://github.com/jamespo/deckedmaster/blob/master/keycodes.go)
 
 #### Paste to clipboard
 
@@ -818,7 +829,8 @@ Made your own useful decks? Submit a pull request!
 
 ## Feedback
 
-Got some feedback or suggestions? Please open an issue or drop me a note!
+Got some feedback or suggestions? Please
+[open an issue](https://github.com/jamespo/deckedmaster/issues).
 
-* [Twitter](https://twitter.com/mueslix)
-* [The Fediverse](https://mastodon.social/@fribbledom)
+Feedback about the original project belongs upstream at
+[muesli/deckmaster](https://github.com/muesli/deckmaster/issues).
