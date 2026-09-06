@@ -159,7 +159,7 @@ func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
 // watchForChanges reloads the deck whenever its config file changes on disk.
 // The watcher shuts itself down as soon as another deck has been loaded, so
 // only the currently active deck ever triggers a reload.
-func (deck *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
+func (d *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -510,12 +510,12 @@ func (deck *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
 }
 
 // runAction executes a single resolved ActionConfig.
-func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
+func (d *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a == nil {
 		return
 	}
 	if a.Deck != "" {
-		newDeck, err := LoadDeck(dev, filepath.Dir(deck.file), a.Deck)
+		newDeck, err := LoadDeck(dev, filepath.Dir(d.file), a.Deck)
 		if err != nil {
 			errorLog(err, "Failed to load deck %s", a.Deck)
 			return
@@ -525,8 +525,11 @@ func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 			return
 		}
 
+		d = newDeck
+		// also update the package-level active deck, otherwise the event
+		// loop keeps redrawing the previous deck a moment later.
 		deck = newDeck
-		deck.updateWidgets()
+		d.updateWidgets()
 	}
 	if a.Keycode != "" {
 		emulateKeyPresses(a.Keycode)
@@ -548,10 +551,10 @@ func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 			}
 
 		case strings.HasPrefix(a.Device, "brightness"):
-			deck.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
+			d.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
 
 		case strings.HasPrefix(a.Device, "volume"):
-			deck.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
+			d.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
 
 		default:
 			errorLogF("Unrecognized special action: %s", a.Device)
