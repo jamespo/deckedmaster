@@ -84,22 +84,22 @@ func LoadDeck(dev *Device, base string, deck string) (*Deck, error) {
 
 // applyConfig applies deck-level configuration (currently the background
 // image). Split out so the REST API can re-apply a config to a live deck.
-func (deck *Deck) applyConfig(dc DeckConfig) error {
-	deck.config = dc
+func (d *Deck) applyConfig(dc DeckConfig) error {
+	d.config = dc
 	if dc.Background == "" {
 		return nil
 	}
 
-	bgPath, err := expandPath(filepath.Dir(deck.file), dc.Background)
+	bgPath, err := expandPath(filepath.Dir(d.file), dc.Background)
 	if err != nil {
 		return err
 	}
-	return deck.loadBackground(bgPath)
+	return d.loadBackground(bgPath)
 }
 
 // GetDevice returns the streamdeck device this deck is bound to.
-func (deck *Deck) GetDevice() *Device {
-	return deck.dev
+func (d *Deck) GetDevice() *Device {
+	return d.dev
 }
 
 // LoadWidgets (re)builds every widget of a deck from its current config. The
@@ -159,7 +159,7 @@ func LoadWidget(deck *Deck, i uint8, keyConfig KeyConfig) (Widget, error) {
 // watchForChanges reloads the deck whenever its config file changes on disk.
 // The watcher shuts itself down as soon as another deck has been loaded, so
 // only the currently active deck ever triggers a reload.
-func (deck *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
+func (d *Deck) watchForChanges(dev *Device, base, deckName, path string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -214,7 +214,7 @@ func (deck *Deck) watchForChanges(dev *Device, base, deckName, path string) erro
 	return nil
 }
 
-func (deck *Deck) addWindow(dev *Device, w *WindowConfig) error {
+func (d *Deck) addWindow(dev *Device, w *WindowConfig) error {
 	verboseLog("loading window overrides %s:%s", w.Resource, w.Title)
 
 	resource, err := regexp.Compile(w.Resource)
@@ -235,12 +235,12 @@ func (deck *Deck) addWindow(dev *Device, w *WindowConfig) error {
 		widgets:  make(map[uint8]Widget),
 	}
 	for _, key := range w.Keys {
-		if e := window.addWidget(dev, deck, key); e != nil {
+		if e := window.addWidget(dev, d, key); e != nil {
 			errorLogF("failed to add widget %s:%s[%d]", w.Resource, w.Title, key.Index)
 			return e
 		}
 	}
-	deck.windows = append(deck.windows, window)
+	d.windows = append(d.windows, window)
 	return nil
 }
 
@@ -261,7 +261,7 @@ func (ww *WindowWidgets) Matches(window ActiveWindow) bool {
 }
 
 // loads a background image.
-func (deck *Deck) loadBackground(bg string) error {
+func (d *Deck) loadBackground(bg string) error {
 	f, err := os.Open(bg)
 	if err != nil {
 		return err
@@ -273,16 +273,16 @@ func (deck *Deck) loadBackground(bg string) error {
 		return err
 	}
 
-	if err := deck.validateBackground(background); err != nil {
+	if err := d.validateBackground(background); err != nil {
 		return err
 	}
 
-	deck.background = background
+	d.background = background
 	return nil
 }
 
-func (deck *Deck) validateBackground(background image.Image) error {
-	dev := deck.dev
+func (d *Deck) validateBackground(background image.Image) error {
+	dev := d.dev
 	rows := int(dev.Rows)
 	cols := int(dev.Columns)
 	padding := int(dev.Padding)
@@ -299,20 +299,20 @@ func (deck *Deck) validateBackground(background image.Image) error {
 }
 
 // returns the background image for an individual key.
-func (deck *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
+func (d *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
 	padding := int(dev.Padding)
 	pixels := int(dev.Pixels)
 	bg := image.NewRGBA(image.Rect(0, 0, pixels, pixels))
 
 	keyConfig := KeyConfig{}
-	for _, conf := range deck.config.Keys {
+	for _, conf := range d.config.Keys {
 		if conf.Index == key {
 			keyConfig = conf
 			break
 		}
 	}
 
-	if deck.background == nil && keyConfig.BackgroundColor == "" {
+	if d.background == nil && keyConfig.BackgroundColor == "" {
 		return bg
 	}
 
@@ -325,8 +325,8 @@ func (deck *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
 	// so the color only shows through the image's transparent regions.
 	blend := keyConfig.BackgroundMode == "blend"
 
-	if deck.background != nil && keyConfig.BackgroundColor != "" && !blend {
-		draw.Draw(bg, bg.Bounds(), deck.background, start, draw.Over)
+	if d.background != nil && keyConfig.BackgroundColor != "" && !blend {
+		draw.Draw(bg, bg.Bounds(), d.background, start, draw.Over)
 	}
 	if keyConfig.BackgroundColor != "" {
 		var fillColor color.Color
@@ -336,49 +336,49 @@ func (deck *Deck) backgroundForKey(dev *Device, key uint8) image.Image {
 			draw.Draw(bg, bg.Bounds(), &image.Uniform{C: fillColor}, start, draw.Src)
 		}
 	}
-	if deck.background != nil && (blend || keyConfig.BackgroundColor == "") {
-		draw.Draw(bg, bg.Bounds(), deck.background, start, draw.Over)
+	if d.background != nil && (blend || keyConfig.BackgroundColor == "") {
+		draw.Draw(bg, bg.Bounds(), d.background, start, draw.Over)
 	}
 
 	return bg
 }
 
-func (deck *Deck) WindowChanged(window ActiveWindow) {
+func (d *Deck) WindowChanged(window ActiveWindow) {
 	verboseLog("windowChanged %s:%s %s", window.resource, window.title, window.id)
 	var match = false
-	for _, w := range deck.windows {
+	for _, w := range d.windows {
 		if w.Matches(window) {
 			verboseLog("windowMatch: %s:%s", w.resource.String(), w.title.String())
 			for i, widget := range w.widgets {
-				deck.overrideWidget(i, widget)
+				d.overrideWidget(i, widget)
 			}
 			match = true
 		}
 	}
 	if !match {
-		for key := range deck.overrides {
-			deck.restoreWidget(key)
+		for key := range d.overrides {
+			d.restoreWidget(key)
 		}
 	}
 }
 
-func (deck *Deck) overrideWidget(key uint8, widget Widget) {
-	deck.overrides[key] = &widget
+func (d *Deck) overrideWidget(key uint8, widget Widget) {
+	d.overrides[key] = &widget
 	if err := widget.Update(); err != nil {
 		fatal(err)
 	}
 }
 
-func (deck *Deck) restoreWidget(key uint8) {
-	delete(deck.overrides, key)
-	if err := deck.widgets[key].Update(); err != nil {
+func (d *Deck) restoreWidget(key uint8) {
+	delete(d.overrides, key)
+	if err := d.widgets[key].Update(); err != nil {
 		fatal(err)
 	}
 }
 
 // ValidateWidgetBackground checks an uploaded image against the deck geometry.
-func (deck *Deck) ValidateWidgetBackground(background image.Image) error {
-	dev := deck.dev
+func (d *Deck) ValidateWidgetBackground(background image.Image) error {
+	dev := d.dev
 	rows := int(dev.Rows)
 	cols := int(dev.Columns)
 	padding := int(dev.Padding)
@@ -453,34 +453,34 @@ func executeDBusMethod(config *DBusConfig) {
 	}
 }
 
-func (deck *Deck) Widgets(yield func(Widget) bool) {
-	for i, w := range deck.widgets {
-		override := deck.overrides[i]
+func (d *Deck) Widgets(yield func(Widget) bool) {
+	for i, w := range d.widgets {
+		override := d.overrides[i]
 		if override == nil {
 			if !yield(w) {
 				return
 			}
 		}
 	}
-	for i := range deck.overrides {
-		widget := deck.overrides[i]
+	for i := range d.overrides {
+		widget := d.overrides[i]
 		if !yield(*widget) {
 			return
 		}
 	}
 }
 
-func (deck *Deck) widget(key uint8) Widget {
-	widget := deck.overrides[key]
+func (d *Deck) widget(key uint8) Widget {
+	widget := d.overrides[key]
 	if widget != nil {
 		return *widget
 	}
-	return deck.widgets[key]
+	return d.widgets[key]
 }
 
 // triggerAction triggers an action.
-func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
-	w := deck.widget(index)
+func (d *Deck) triggerAction(dev *Device, index uint8, hold bool) {
+	w := d.widget(index)
 	w.TriggerAction(hold)
 
 	var a *ActionConfig
@@ -489,7 +489,7 @@ func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 	} else {
 		a = w.Action()
 	}
-	deck.runAction(dev, a)
+	d.runAction(dev, a)
 }
 
 // triggerRotateAction triggers the action bound to a rotary encoder being
@@ -497,8 +497,8 @@ func (deck *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 // clockwise; only its sign is used. Devices without rotary encoders (e.g. a
 // genuine Stream Deck) never report rotation, so this is never reached for
 // them.
-func (deck *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
-	w := deck.widget(index)
+func (d *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
+	w := d.widget(index)
 
 	var a *ActionConfig
 	if delta < 0 {
@@ -506,16 +506,16 @@ func (deck *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
 	} else {
 		a = w.ActionRotateRight()
 	}
-	deck.runAction(dev, a)
+	d.runAction(dev, a)
 }
 
 // runAction executes a single resolved ActionConfig.
-func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
+func (d *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a == nil {
 		return
 	}
 	if a.Deck != "" {
-		newDeck, err := LoadDeck(dev, filepath.Dir(deck.file), a.Deck)
+		newDeck, err := LoadDeck(dev, filepath.Dir(d.file), a.Deck)
 		if err != nil {
 			errorLog(err, "Failed to load deck %s", a.Deck)
 			return
@@ -525,8 +525,12 @@ func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 			return
 		}
 
+		// the event loop redraws from the package-level active deck, so it
+		// has to be switched too or the previous deck snaps back a moment
+		// later. The receiver follows it for the rest of this action.
 		deck = newDeck
-		deck.updateWidgets()
+		d = newDeck
+		d.updateWidgets()
 	}
 	if a.Keycode != "" {
 		emulateKeyPresses(a.Keycode)
@@ -548,10 +552,10 @@ func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 			}
 
 		case strings.HasPrefix(a.Device, "brightness"):
-			deck.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
+			d.adjustBrightness(dev, strings.TrimPrefix(a.Device, "brightness"))
 
 		case strings.HasPrefix(a.Device, "volume"):
-			deck.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
+			d.adjustVolume(strings.TrimPrefix(a.Device, "volume"))
 
 		default:
 			errorLogF("Unrecognized special action: %s", a.Device)
@@ -560,9 +564,9 @@ func (deck *Deck) runAction(dev *Device, a *ActionConfig) {
 }
 
 // updateWidgets updates/repaints all the widgets.
-func (deck *Deck) updateWidgets() {
+func (d *Deck) updateWidgets() {
 	updateMutex.Lock()
-	for w := range deck.Widgets {
+	for w := range d.Widgets {
 		if !w.RequiresUpdate() {
 			continue
 		}
@@ -575,15 +579,15 @@ func (deck *Deck) updateWidgets() {
 	updateMutex.Unlock()
 }
 
-func (deck *Deck) replaceBackground(image image.Image) error {
+func (d *Deck) replaceBackground(image image.Image) error {
 	updateMutex.Lock()
-	err := deck.validateBackground(image)
+	err := d.validateBackground(image)
 	if err != nil {
 		updateMutex.Unlock()
 		return err
 	}
-	deck.background = image
-	for w := range deck.Widgets {
+	d.background = image
+	for w := range d.Widgets {
 		w.reloadBackground()
 		// fmt.Println("Repaint", w.Key())
 		if err := w.Update(); err != nil {
@@ -595,7 +599,7 @@ func (deck *Deck) replaceBackground(image image.Image) error {
 }
 
 // adjustBrightness adjusts the brightness.
-func (deck *Deck) adjustBrightness(dev *Device, value string) {
+func (d *Deck) adjustBrightness(dev *Device, value string) {
 	if len(value) == 0 {
 		errorLogF("no brightness value specified")
 		return
@@ -644,7 +648,7 @@ func (deck *Deck) adjustBrightness(dev *Device, value string) {
 // adjustVolume adjusts the default PulseAudio sink's volume. value uses the
 // same "=[n]", "-[n]", "+[n]" mini-language as "brightness" actions,
 // interpreted as a percentage (0-100).
-func (deck *Deck) adjustVolume(value string) {
+func (d *Deck) adjustVolume(value string) {
 	if len(value) == 0 {
 		errorLogF("no volume value specified")
 		return
