@@ -7,7 +7,7 @@ import (
 	"image"
 	"io"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -213,7 +213,9 @@ func (w *WeatherWidget) Update() error {
 	}
 
 	var weatherIcon image.Image
-	imagePath := filepath.Join("assets", "weather", iconName+".png")
+	// path.Join, not filepath.Join: this is a lookup key into the embed.FS
+	// below, which always uses "/" regardless of host OS.
+	imagePath := path.Join("assets", "weather", iconName+".png")
 	if w.theme != "" {
 		var err error
 		weatherIcon, err = loadThemeImage(w.theme, iconName)

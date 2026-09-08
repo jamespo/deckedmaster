@@ -820,6 +820,21 @@ Cycle through players:
 Use `select+` to select the next player to be active and `select-` to select
 the previous player.
 
+## Windows Support
+
+MS Windows support is being tested, you need to install [Roboto fonts](https://fonts.google.com/specimen/Roboto) (bold, thin
+& regular variants at a minimum).
+
+To build on windows, you'll need to install MSYS2 & mingw-w64 GCC as the build requires CGO - the build will still complete
+without these, but no decks will be detected.
+
+```
+export CGO_ENABLED=1
+export CC=/c/msys64/mingw64/bin/gcc.exe
+export PATH="/c/msys64/mingw64/bin:$PATH"
+go build .
+```
+
 ## More Decks!
 
 * [deckmaster-emojis](https://github.com/muesli/deckmaster-emojis), an Emoji keyboard deck

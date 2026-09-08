@@ -279,7 +279,10 @@ func initDevice() (*Device, error) {
 	}
 	ver, err := dev.FirmwareVersion()
 	if err != nil {
-		return &dev, err
+		// Not fatal: some compatible devices (e.g. Ajazz/Mirabox models)
+		// don't reliably support querying firmware version over a HID
+		// feature report, particularly on Windows.
+		errorLog(err, "failed to query device firmware version")
 	}
 	verboseLog("Found device with serial %s (%d buttons, firmware %s)",
 		dev.Serial, dev.Keys, strip(ver))
