@@ -19,7 +19,7 @@ import (
 
 var (
 	SPACES = regexp.MustCompile(`\s+`)
-	PATH   = strings.Split(os.Getenv("PATH"), ":")
+	PATH   = filepath.SplitList(os.Getenv("PATH"))
 )
 
 type WindowWidgets struct {
@@ -443,7 +443,7 @@ func emulateClipboard(text string) {
 	errorLog(clipboard.WriteAll(text), "failed to paste from the Clipboard")
 
 	// paste the string
-	emulateKeyPress("29-47") // ctrl-v
+	emulateKeyPress("Leftctrl-V")
 }
 
 // executes a dbus method.

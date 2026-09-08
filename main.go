@@ -13,7 +13,6 @@ import (
 
 	"github.com/godbus/dbus/v5"
 
-	"github.com/bendahl/uinput"
 	"github.com/mitchellh/go-homedir"
 )
 
@@ -29,7 +28,7 @@ var (
 	deck        *Deck
 	currentDeck string
 
-	keyboard    uinput.Keyboard
+	keyboard    VirtualKeyboard
 	shutdown    = make(chan error)
 	updateMutex sync.Mutex
 	// Would not need this if there was a streamdeck.GetSleepTimeout()
@@ -40,7 +39,7 @@ var (
 	invalidChars = regexp.MustCompile("[[:^graph:]]+")
 
 	pa            *PulseAudio
-	xorg          *Xorg
+	desktop       *Desktop
 	recentWindows []Window
 
 	mediaPlayers *MediaPlayers
@@ -124,28 +123,11 @@ func expandPath(base, path string) (string, error) {
 	return filepath.Abs(path)
 }
 
-func reapChildProcesses() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGCHLD)
-
-	for range sigs {
-		for {
-			var status syscall.WaitStatus
-			pid, err := syscall.Wait4(-1, &status, syscall.WNOHANG, nil)
-			if pid <= 0 || err != nil {
-				break
-			}
-			verboseLog("reaped pid=%d status=%d", pid, status.ExitStatus())
-		}
-	}
-}
-
 func eventLoop(dev *Device, tch chan interface{}, mch chan interface{}) error {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	hup := make(chan os.Signal, 1)
-	signal.Notify(hup, syscall.SIGHUP)
+	hup := notifyReload()
 
 	var keyStates sync.Map
 	keyTimestamps := make(map[uint8]time.Time)
@@ -345,20 +327,21 @@ func run() error {
 		defer sessionBus.Close() //nolint:errcheck
 	}
 
-	// initialize xorg connection and track window focus
+	// initialize the desktop connection and track window focus
 	tch := make(chan interface{})
-	xorg, e = Connect()
+	desktop, e = ConnectDesktop()
 	if e == nil {
-		defer xorg.Close()
-		xorg.TrackWindows(tch, time.Second)
+		defer desktop.Close()
+		desktop.TrackWindows(tch, time.Second)
 	} else {
-		errorLog(e, "failed to connect to X server (Wayland?)")
+		errorLog(e, "failed to connect to the desktop")
+		errorLogF("Window tracking widgets will be disabled!")
 	}
 
 	// initialize virtual keyboard
-	keyboard, e = uinput.CreateKeyboard("/dev/uinput", []byte("deckedmaster"))
+	keyboard, e = newVirtualKeyboard()
 	if e != nil {
-		errorLog(e, "failed to create virtual input device (/dev/uinput)")
+		errorLog(e, "failed to create the virtual keyboard")
 		errorLogF("Emulating keyboard events will be disabled!")
 	} else {
 		defer keyboard.Close() //nolint:errcheck
