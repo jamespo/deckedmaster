@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"image/color"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -75,7 +74,7 @@ func (w *CommandWidget) Update() error {
 }
 
 func runCommand(command string) (string, error) {
-	output, err := exec.Command("sh", "-c", command).Output()
+	output, err := shellCommand(command).Output()
 	if err != nil {
 		return "", err
 	}

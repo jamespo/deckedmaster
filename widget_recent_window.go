@@ -78,17 +78,17 @@ func (w *RecentWindowWidget) Update() error {
 
 // TriggerAction gets called when a button is pressed.
 func (w *RecentWindowWidget) TriggerAction(hold bool) {
-	if xorg == nil {
-		errorLogF("xorg support is disabled!")
+	if desktop == nil {
+		errorLogF("window tracking is disabled!")
 		return
 	}
 
 	if int(w.window) < len(recentWindows) {
 		if hold {
-			_ = xorg.CloseWindow(recentWindows[w.window])
+			_ = desktop.CloseWindow(recentWindows[w.window])
 			return
 		}
 
-		_ = xorg.RequestActivation(recentWindows[w.window])
+		_ = desktop.RequestActivation(recentWindows[w.window])
 	}
 }

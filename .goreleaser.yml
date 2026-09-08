@@ -22,6 +22,22 @@ builds:
       - 6
       - 7
 
+  # HID access goes through hidapi, so the Windows build needs cgo and a
+  # mingw-w64 toolchain. Without CGO_ENABLED=1 the hid package compiles to
+  # its disabled stub and no device is ever found at runtime.
+  - id: deckedmaster-windows
+    binary: deckedmaster
+    flags:
+      - -trimpath
+    ldflags: -s -w -X main.Version={{ .Version }} -X main.CommitSHA={{ .Commit }}
+    env:
+      - CGO_ENABLED=1
+      - CC=x86_64-w64-mingw32-gcc
+    goos:
+      - windows
+    goarch:
+      - amd64
+
 archives:
   # Keeps the pre-v2 artifact names, which used to be produced by the removed
   # `replacements` option.
@@ -31,6 +47,9 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
 nfpms:
   - ids:
