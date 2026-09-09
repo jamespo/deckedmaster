@@ -1,6 +1,6 @@
 module github.com/jamespo/deckedmaster
 
-go 1.25.0
+go 1.26.0
 
 require (
 	fyne.io/systray v1.12.2
@@ -10,7 +10,7 @@ require (
 	github.com/flopp/go-findfont v0.1.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.9.1
-	github.com/go-openapi/runtime/server-middleware v0.33.1
+	github.com/go-openapi/runtime/server-middleware v0.33.2
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/gwatts/gin-adapter v1.0.0
