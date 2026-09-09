@@ -312,6 +312,10 @@ func initDevice() (*Device, error) {
 }
 
 func run() error {
+	// initialize the system tray icon (Windows only, behind -tray)
+	startTray()
+	defer stopTray()
+
 	// initialize device
 	dev, e := initDevice()
 	if dev != nil {
@@ -411,6 +415,8 @@ func main() {
 		fmt.Println()
 		os.Exit(0)
 	}
+
+	checkHIDSupport()
 
 	if e := loadFonts(); e != nil {
 		errorLog(e, "fatal")

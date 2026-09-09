@@ -3,6 +3,7 @@ module github.com/jamespo/deckedmaster
 go 1.25.0
 
 require (
+	fyne.io/systray v1.12.2
 	github.com/BurntSushi/toml v1.6.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/bendahl/uinput v1.7.0
