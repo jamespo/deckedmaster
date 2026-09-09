@@ -412,9 +412,7 @@ func (a *ajazzDevice) writeExtended(payload []byte) error {
 		return fmt.Errorf("ajazz: command payload too large (%d > %d bytes)", len(payload), a.profile.packetSize)
 	}
 
-	buf := make([]byte, 1+a.profile.packetSize)
-	copy(buf[1:], payload)
-	return a.write(buf)
+	return a.write(hidOutputReport(payload, a.profile.packetSize))
 }
 
 // writeImageData splits raw image bytes into packetSize-sized HID output
@@ -426,9 +424,7 @@ func (a *ajazzDevice) writeImageData(data []byte) error {
 			end = len(data)
 		}
 
-		buf := make([]byte, 1+a.profile.packetSize)
-		copy(buf[1:], data[offset:end])
-		if err := a.write(buf); err != nil {
+		if err := a.write(hidOutputReport(data[offset:end], a.profile.packetSize)); err != nil {
 			return err
 		}
 	}

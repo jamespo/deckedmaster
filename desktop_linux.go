@@ -16,8 +16,8 @@ import (
 	"github.com/jezek/xgbutil/xgraphics"
 )
 
-// Xorg provides an interface to an X11 session.
-type Xorg struct {
+// Desktop provides an interface to an X11 session.
+type Desktop struct {
 	conn         *xgb.Conn
 	util         *xgbutil.XUtil
 	root         xproto.Window
@@ -28,27 +28,9 @@ type Xorg struct {
 	activeWindow Window
 }
 
-// ActiveWindowChangedEvent gets emitted when the active window changes.
-type ActiveWindowChangedEvent struct {
-	Window Window
-}
-
-// WindowClosedEvent gets emitted when a window gets closed.
-type WindowClosedEvent struct {
-	Window Window
-}
-
-// Window describes an X11 window.
-type Window struct {
-	ID    uint32
-	Class string
-	Name  string
-	Icon  image.Image
-}
-
-// Connect establishes a connection with an Xorg display.
-func Connect() (*Xorg, error) {
-	var x Xorg
+// ConnectDesktop establishes a connection with an Xorg display.
+func ConnectDesktop() (*Desktop, error) {
+	var x Desktop
 	var err error
 
 	x.conn, err = xgb.NewConn()
@@ -83,13 +65,13 @@ func Connect() (*Xorg, error) {
 }
 
 // Close terminates the connection.
-func (x *Xorg) Close() {
+func (x *Desktop) Close() {
 	x.util.Conn().Close()
 	x.conn.Close()
 }
 
 // TrackWindows monitors the active window.
-func (x *Xorg) TrackWindows(ch chan interface{}, timeout time.Duration) {
+func (x *Desktop) TrackWindows(ch chan interface{}, timeout time.Duration) {
 	if win, ok := x.window(); ok {
 		x.activeWindow = win
 
@@ -147,21 +129,21 @@ func (x *Xorg) TrackWindows(ch chan interface{}, timeout time.Duration) {
 }
 
 // ActiveWindow returns the currently active window.
-func (x *Xorg) ActiveWindow() Window {
+func (x *Desktop) ActiveWindow() Window {
 	return x.activeWindow
 }
 
 // RequestActivation requests a window to be focused.
-func (x *Xorg) RequestActivation(w Window) error {
+func (x *Desktop) RequestActivation(w Window) error {
 	return ewmh.ActiveWindowReq(x.util, xproto.Window(w.ID))
 }
 
 // CloseWindow closes a window.
-func (x *Xorg) CloseWindow(w Window) error {
+func (x *Desktop) CloseWindow(w Window) error {
 	return ewmh.CloseWindow(x.util, xproto.Window(w.ID))
 }
 
-func (x *Xorg) atom(aname string) *xproto.InternAtomReply {
+func (x *Desktop) atom(aname string) *xproto.InternAtomReply {
 	//nolint:gosec // atom names are compile-time constants, never near 64KiB
 	a, err := xproto.InternAtom(x.conn, true, uint16(len(aname)), aname).Reply()
 	if err != nil {
@@ -170,11 +152,11 @@ func (x *Xorg) atom(aname string) *xproto.InternAtomReply {
 	return a
 }
 
-func (x *Xorg) property(w xproto.Window, a *xproto.InternAtomReply) (*xproto.GetPropertyReply, error) {
+func (x *Desktop) property(w xproto.Window, a *xproto.InternAtomReply) (*xproto.GetPropertyReply, error) {
 	return xproto.GetProperty(x.conn, false, w, a.Atom, xproto.GetPropertyTypeAny, 0, (1<<32)-1).Reply()
 }
 
-func (x *Xorg) active() xproto.Window {
+func (x *Desktop) active() xproto.Window {
 	p, err := x.property(x.root, x.activeAtom)
 	if err != nil || len(p.Value) == 0 {
 		return x.root
@@ -182,7 +164,7 @@ func (x *Xorg) active() xproto.Window {
 	return xproto.Window(xgb.Get32(p.Value))
 }
 
-func (x *Xorg) name(w xproto.Window) (string, error) {
+func (x *Desktop) name(w xproto.Window) (string, error) {
 	name, err := x.property(w, x.netNameAtom)
 	if err != nil {
 		return "", err
@@ -199,7 +181,7 @@ func (x *Xorg) name(w xproto.Window) (string, error) {
 	return string(name.Value), nil
 }
 
-func (x *Xorg) icon(w xproto.Window) (image.Image, error) {
+func (x *Desktop) icon(w xproto.Window) (image.Image, error) {
 	icon, err := xgraphics.FindIcon(x.util, w, 128, 128)
 	if err != nil {
 		errorLogF("Could not find icon for window %d", w)
@@ -209,7 +191,7 @@ func (x *Xorg) icon(w xproto.Window) (image.Image, error) {
 	return icon, nil
 }
 
-func (x *Xorg) class(w xproto.Window) (string, error) {
+func (x *Desktop) class(w xproto.Window) (string, error) {
 	class, err := x.property(w, x.classAtom)
 	if err != nil {
 		return "", err
@@ -222,7 +204,7 @@ func (x *Xorg) class(w xproto.Window) (string, error) {
 	return "", errors.New("empty class")
 }
 
-func (x *Xorg) window() (Window, bool) {
+func (x *Desktop) window() (Window, bool) {
 	id := x.active()
 	/* skip invalid window id */
 	if id == 0 {
@@ -250,12 +232,12 @@ func (x *Xorg) window() (Window, bool) {
 	}, true
 }
 
-func (x *Xorg) spy(w xproto.Window) {
+func (x *Desktop) spy(w xproto.Window) {
 	xproto.ChangeWindowAttributes(x.conn, w, xproto.CwEventMask,
 		[]uint32{xproto.EventMaskPropertyChange | xproto.EventMaskStructureNotify})
 }
 
-func (x *Xorg) waitForEvent(events chan<- xgb.Event) {
+func (x *Desktop) waitForEvent(events chan<- xgb.Event) {
 	for {
 		ev, err := x.conn.WaitForEvent()
 		if err != nil {
@@ -267,7 +249,7 @@ func (x *Xorg) waitForEvent(events chan<- xgb.Event) {
 }
 
 /*
-func (x Xorg) queryIdle() time.Duration {
+func (x Desktop) queryIdle() time.Duration {
 	info, err := screensaver.QueryInfo(x.conn, xproto.Drawable(x.root)).Reply()
 	if err != nil {
 		errorLogF("query idle:", err)

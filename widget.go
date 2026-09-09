@@ -253,6 +253,11 @@ func loadThemeImage(theme string, img string) (image.Image, error) {
 }
 
 func flattenImage(img image.Image, clr color.Color) image.Image {
+	// Ports that cannot supply a window icon hand us a nil image, which the
+	// widgets below already render as a label-only button.
+	if img == nil {
+		return nil
+	}
 	bounds := img.Bounds()
 	flatten := image.NewRGBA(bounds)
 	draw.Draw(flatten, flatten.Bounds(), img, image.Point{}, draw.Src)

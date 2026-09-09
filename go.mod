@@ -3,6 +3,7 @@ module github.com/jamespo/deckedmaster
 go 1.25.0
 
 require (
+	fyne.io/systray v1.12.2
 	github.com/BurntSushi/toml v1.6.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/bendahl/uinput v1.7.0
@@ -26,6 +27,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.9
 	github.com/tvidal-net/pulseaudio v0.0.0-20250620201345-9831624d251c
 	golang.org/x/image v0.45.0
+	golang.org/x/sys v0.47.0
 )
 
 require (
@@ -61,7 +63,6 @@ require (
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
