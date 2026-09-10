@@ -89,7 +89,10 @@ func niriRequest(request interface{}) (json.RawMessage, error) {
 		return nil, err
 	}
 
-	conn, err := net.DialTimeout("unix", socket, niriTimeout)
+	// The path comes from the environment, but it is a unix socket the
+	// compositor that spawned us exported, not a network address, so there is
+	// nothing here for a request to be forged against.
+	conn, err := net.DialTimeout("unix", socket, niriTimeout) //nolint:gosec // G704: $NIRI_SOCKET is a local socket, not a URL
 	if err != nil {
 		return nil, err
 	}
