@@ -544,6 +544,9 @@ func (d *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a.Exec != "" {
 		errorLog(executeCommand(a.Exec), "failed to execute command")
 	}
+	if a.Niri != "" {
+		errorLog(niriCommand(a.Niri), "failed to perform niri command '%s'", a.Niri)
+	}
 	if a.Device != "" {
 		switch {
 		case a.Device == "sleep":

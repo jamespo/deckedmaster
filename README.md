@@ -62,12 +62,14 @@ including using the left encoder to control the volume.
     - Per-application volume control (PulseAudio)
     - Media player controls (MPRIS/DBus)
     - Spotify
+    - niri compositor state (Linux-only)
 - Lets you trigger several actions:
     - Run commands
     - Emulate a key-press
     - Paste to clipboard
     - Trigger a dbus call
     - Control media players
+    - Drive the niri compositor (Linux-only)
 - REST based API:
     - Read and update device state like brightness and sleep/fade time.
     - Wake or put the device to sleep.
@@ -223,6 +225,22 @@ Scripts* once it is installed.
 Other compositors can drive the same interface by calling the
 `ActiveWindowChanged` method on `/Monitor` with the window's resource name,
 title and id.
+
+### Wayland / niri
+
+[niri](https://github.com/YaLTeR/niri) is supported natively, over its own IPC
+socket: see the [niri widget](#niri-linux-only) for the state a key can show
+and [niri actions](#niri-compositor-actions-linux-only) for what a key can do.
+This is separate from the window tracking above - it needs no DBus service and
+no compositor-side script, only `$NIRI_SOCKET`, which niri exports into every
+process it starts.
+
+If you run deckedmaster from a systemd user unit rather than from niri itself,
+add `ExecStartPre=/bin/sleep 5` to its `[Service]` section: started too early,
+it comes up before niri has finished setting up. The unit also needs
+`$NIRI_SOCKET` in its environment, which `niri-session` arranges by importing
+niri's environment into the user session - check with
+`systemctl --user show-environment | grep NIRI_SOCKET` if keys stay blank.
 
 ## Usage
 
@@ -679,6 +697,57 @@ status` has been chosen, the icons `icon_playing`, `icon_paused` or
 `icon_no_player` will be shown depending on the playback status of the selected
 media player.
 
+#### Niri (Linux only)
+
+A widget that displays the state of the [niri](https://github.com/YaLTeR/niri)
+Wayland compositor, one field per line:
+
+```toml
+[keys.widget]
+  id = "niri"
+  interval = 1000 # optional
+  [keys.widget.config]
+    fields = ["ws-name", "ws-idx", "ws-count"]
+    font = ["regular", "bold", "thin"] # optional
+    color = ["#8899aa", "#ffffff", "#8899aa"] # optional
+    layout = "0x0+72x20;0x20+72x52" # optional
+    width = 10 # optional
+    placeholder = "-" # optional
+```
+
+The fields a key can draw are:
+
+| Field | Shows |
+| --- | --- |
+| `ws-name` | focused workspace name, or `ws` if it has none |
+| `ws-idx` | focused workspace index |
+| `ws-count` | `<idx>/<total>` for the focused output |
+| `win-app` | focused window's app id, last component only |
+| `win-title` | focused window's title |
+| `win-pos` | `<column>/<columns>` in the focused workspace |
+| `output` | focused output name |
+| `output-count` | `<n> mon` |
+| `overview` | `OPEN` or `closed` |
+
+Anything else in `fields` is drawn literally, which is how a key gets a static
+caption above a live value - `fields = ["Monitor", "output", "output-count"]`.
+
+`width` is the number of characters before a window title or workspace name is
+truncated; key screens are around 60 pixels wide, so a title that is not cut
+down renders as a smudge. `placeholder` is drawn in place of state niri does
+not have, e.g. the title of a window when nothing is focused.
+
+deckedmaster talks to niri over its IPC socket directly, so no `niri msg`
+process is forked to paint a key. Replies are cached for a second in
+`$XDG_RUNTIME_DIR/niri-deck-<uid>/`, one file per query, named after the
+`niri msg` subcommand that returns the same JSON - so six keys refreshing on
+the same tick cost one round trip each rather than one per key, and what a key
+is showing can be looked at from a shell. Performing a niri action drops the
+cache, so a key reflects a press on its very next refresh.
+
+See [decks/niri.deck](decks/niri.deck) for a complete deck built out of this
+widget and the actions below.
+
 ### Actions
 
 You can hook up any key with several actions. A regular keypress will trigger
@@ -819,6 +888,50 @@ Cycle through players:
 
 Use `select+` to select the next player to be active and `select-` to select
 the previous player.
+
+#### Niri compositor actions (Linux only)
+
+Perform an action in the [niri](https://github.com/YaLTeR/niri) Wayland
+compositor, over its IPC socket rather than by running `niri msg`:
+
+```toml
+[keys.action]
+  niri = "maximize-column"
+```
+
+Any niri action is accepted, spelled the way `niri msg action` spells it.
+Actions that take no arguments - which is nearly all of them, and all the ones
+a key normally binds - need nothing more than their name.
+
+On top of those, these commands do what a single niri action cannot:
+
+| Command | Does |
+| --- | --- |
+| `ws-cycle` | next workspace on this output, wrapping past the last back to the first |
+| `ws-scroll -1` / `+1` | one workspace up/down, for a dial |
+| `win-scroll -1` / `+1` | one column left/right, for a dial |
+| `mon-scroll -1` / `+1` | previous/next monitor, a no-op with a single output |
+| `mon-next` | next monitor, a no-op with a single output |
+
+`ws-cycle` exists because niri's own `focus-workspace-down` stops dead at the
+end of the list, which is wrong for a key whose whole job is to cycle. The
+monitor commands are silent no-ops on a single-output machine rather than
+making niri log a warning for every detent of a dial that cannot go anywhere.
+
+`focus-workspace` takes an index or a name:
+
+```toml
+[keys.action]
+  niri = "focus-workspace dev"
+```
+
+For any other action that takes arguments, pass the JSON for the matching
+variant of niri's own `Action` enum:
+
+```toml
+[keys.action]
+  niri = '{"CloseWindow":{"id":42}}'
+```
 
 ## Windows Support
 

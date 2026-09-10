@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"strings"
@@ -21,12 +22,22 @@ type CommandWidget struct {
 func NewCommandWidget(bw *BaseWidget, opts WidgetConfig) *CommandWidget {
 	bw.setInterval(opts.IntervalDuration(), time.Second)
 
+	// A setting we can't parse leaves its destination empty, which paints a
+	// blank key - silently, unless we say something here.
+	config := func(key string, dst interface{}) {
+		v, ok := opts.Config[key]
+		if !ok {
+			return
+		}
+		errorLog(ConfigValue(v, dst), "command widget on key %d: bad '%s' setting", bw.key, key)
+	}
+
 	var commands, fonts, frameReps []string
-	_ = ConfigValue(opts.Config["command"], &commands)
-	_ = ConfigValue(opts.Config["font"], &fonts)
-	_ = ConfigValue(opts.Config["layout"], &frameReps)
+	config("command", &commands)
+	config("font", &fonts)
+	config("layout", &frameReps)
 	var colors []color.Color
-	_ = ConfigValue(opts.Config["color"], &colors)
+	config("color", &colors)
 
 	layout := NewLayout(int(bw.dev.Pixels))
 	frames := layout.FormatLayout(frameReps, len(commands))
@@ -57,8 +68,9 @@ func (w *CommandWidget) Update() error {
 	for i := 0; i < len(w.commands); i++ {
 		str, err := runCommand(w.commands[i])
 		if err != nil {
-			return err
+			return fmt.Errorf("key %d: command '%s': %w", w.key, w.commands[i], err)
 		}
+		verboseLog("key %d: command '%s' printed '%s'", w.key, w.commands[i], str)
 		font := fontByName(w.fonts[i])
 
 		drawString(img,
