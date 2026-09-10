@@ -20,6 +20,7 @@ var widgetIDs = []string{
 	"mediaPlayer",
 	"microphoneMute",
 	"mute",
+	"niri",
 	"pulseAudioControl",
 	"recentWindow",
 	"spotify",

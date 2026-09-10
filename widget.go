@@ -198,6 +198,9 @@ func NewWidget(dev *Device, base string, kc KeyConfig, bg image.Image) (Widget, 
 
 	case "mediaPlayer":
 		return NewMediaPlayerWidget(bw, kc.Widget)
+
+	case "niri":
+		return NewNiriWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID

@@ -41,6 +41,8 @@ type ActionConfig struct {
 	DBus *DBusConfig `toml:"dbus,omitempty" json:"dbus,omitempty"`
 	// A media player command to execute.
 	MediaPlayer string `toml:"media_player,omitempty" json:"media_player,omitempty"`
+	// A niri compositor command to perform (Linux only).
+	Niri string `toml:"niri,omitempty" json:"niri,omitempty"`
 }
 
 // WidgetConfig describes configuration data for widgets.

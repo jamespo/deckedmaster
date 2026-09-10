@@ -1,0 +1,191 @@
+# Control deck for the niri Wayland compositor, laid out for the Ajazz AKP03E
+# (3x3 button grid + 3 rotary encoders).
+#
+# Everything here talks to niri over its IPC socket directly - no `niri msg`,
+# no helper script, no shell. See the "Niri" section of the README for the
+# fields a key can draw and the commands it can perform.
+#
+# Device layout:
+#   keys 0-5   two rows of LCD keys
+#   keys 6-8   bottom row, plain buttons with no screen
+#   keys 9-11  the three rotary encoders (turn + press, no screen)
+#
+#   +-----------+-----------+-----------+
+#   | 0 wrkspce | 1 window  | 2 overview|
+#   +-----------+-----------+-----------+
+#   | 3 maximize| 4 fullscrn| 5 monitor |
+#   +-----------+-----------+-----------+
+#   | 6 center  | 7 close   | 8 back    |    (unlit)
+#   +-----------+-----------+-----------+
+#     9 wrkspces  10 windows   11 monitors   (dials; 10 is the large one)
+
+# --- Row 1: where am I ------------------------------------------------------
+
+# Focused workspace: name on top, index in the middle, position in the list
+# underneath. Press to step to the next workspace on this output, wrapping past
+# the last one back to the first - which is what "ws-cycle" adds over niri's
+# own focus-workspace-down, as that one stops dead at the end of the list.
+[[keys]]
+  index = 0
+  name = "workspace"
+  [keys.widget]
+    id = "niri"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["ws-name", "ws-idx", "ws-count"]
+      font = ["regular", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    niri = "ws-cycle"
+
+# Focused window: app id, title, and the focused column's position in the
+# workspace - which is the readout for the large dial. Press to jump back to
+# the previously focused window.
+[[keys]]
+  index = 1
+  name = "window"
+  [keys.widget]
+    id = "niri"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["win-app", "win-title", "win-pos"]
+      font = ["regular", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    niri = "focus-window-previous"
+
+# Overview. "Overview" is not the name of a field, so it is drawn as the
+# caption it looks like; the line below it is read back from the compositor, so
+# it stays right when the overview is opened from a keybind. Press toggles;
+# hold always closes.
+[[keys]]
+  index = 2
+  name = "overview"
+  [keys.widget]
+    id = "niri"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["Overview", "overview"]
+      font = ["thin", "bold"]
+      color = ["#8899aa", "#ffffff"]
+  [keys.action]
+    niri = "toggle-overview"
+  [keys.action_hold]
+    niri = "close-overview"
+
+# --- Row 2: window layout ---------------------------------------------------
+
+[[keys]]
+  index = 3
+  name = "maximize"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Maximize"
+  [keys.action]
+    niri = "maximize-column"
+
+[[keys]]
+  index = 4
+  name = "fullscreen"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Fullscreen"
+  [keys.action]
+    niri = "fullscreen-window"
+  [keys.action_hold]
+    niri = "toggle-windowed-fullscreen"
+
+# Focused output, and how many are connected. Press to move to the next
+# monitor - a silent no-op when this is the only one, rather than a warning in
+# niri's log per press.
+[[keys]]
+  index = 5
+  name = "monitor"
+  [keys.widget]
+    id = "niri"
+    interval = 2000
+    [keys.widget.config]
+      fields = ["Monitor", "output", "output-count"]
+      font = ["thin", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    niri = "mon-next"
+
+# --- Row 3: unlit buttons ---------------------------------------------------
+#
+# These three keys have no screen on the AKP03E, so the labels are only here to
+# document what they do.
+
+[[keys]]
+  index = 6
+  name = "center"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Center"
+  [keys.action]
+    niri = "center-column"
+
+[[keys]]
+  index = 7
+  name = "close"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Close"
+  [keys.action]
+    niri = "close-window"
+
+# Back to whichever deck you keep as your main one.
+[[keys]]
+  index = 8
+  name = "back"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Back"
+  [keys.action]
+    deck = "main.deck"
+
+# --- Dials ------------------------------------------------------------------
+
+# Left (small) dial: one workspace per detent, in the direction niri calls
+# up/down. Press to jump back to the previous workspace.
+[[keys]]
+  index = 9
+  name = "dial-workspace"
+  [keys.action]
+    niri = "focus-workspace-previous"
+  [keys.action_rotate_left]
+    niri = "ws-scroll -1"
+  [keys.action_rotate_right]
+    niri = "ws-scroll +1"
+
+# Large dial: scroll left and right through the windows of the current
+# workspace. One column per detent - a column holding stacked windows is
+# stepped over in one go, which is what "left and right" means in niri's
+# scrolling layout. Press to maximize the column you land on.
+[[keys]]
+  index = 10
+  name = "dial-window"
+  [keys.action]
+    niri = "maximize-column"
+  [keys.action_rotate_left]
+    niri = "win-scroll -1"
+  [keys.action_rotate_right]
+    niri = "win-scroll +1"
+
+# Right (small) dial: step between monitors. Does nothing on a single-output
+# machine rather than making niri log a warning per detent. Press to toggle the
+# overview, which is the quickest way to see where the focus went.
+[[keys]]
+  index = 11
+  name = "dial-monitor"
+  [keys.action]
+    niri = "toggle-overview"
+  [keys.action_rotate_left]
+    niri = "mon-scroll -1"
+  [keys.action_rotate_right]
+    niri = "mon-scroll +1"
