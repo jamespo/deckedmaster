@@ -1,6 +1,6 @@
 module github.com/jamespo/deckedmaster
 
-go 1.25.0
+go 1.26.0
 
 require (
 	fyne.io/systray v1.12.2
@@ -27,7 +27,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.9
 	github.com/tvidal-net/pulseaudio v0.0.0-20250620201345-9831624d251c
 	golang.org/x/image v0.45.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
