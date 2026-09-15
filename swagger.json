@@ -531,6 +531,11 @@
           "description": "A string to paste.",
           "type": "string",
           "x-go-name": "Paste"
+        },
+        "umbriel": {
+          "description": "An umbriel compositor command to perform (Linux only).",
+          "type": "string",
+          "x-go-name": "Umbriel"
         }
       },
       "x-go-package": "github.com/jamespo/deckedmaster"

@@ -1,0 +1,211 @@
+# Control deck for the umbriel Wayland compositor, laid out for the Ajazz AKP03E
+# (3x3 button grid + 3 rotary encoders).
+#
+# Everything here talks to umbriel through its own client: the state the keys
+# draw arrives on the `umbriel subscribe` event stream, which this daemon keeps
+# open for as long as it runs, and the actions go out as `umbriel msg`. No key
+# polls the compositor. See the "Umbriel" section of the README for the fields
+# a key can draw and the commands it can perform.
+#
+# Device layout:
+#   keys 0-5   two rows of LCD keys
+#   keys 6-8   bottom row, plain buttons with no screen
+#   keys 9-11  the three rotary encoders (turn + press, no screen)
+#
+#   +-----------+-----------+-----------+
+#   | 0 wrkspce | 1 window  | 2 overview|
+#   +-----------+-----------+-----------+
+#   | 3 layout  | 4 scratch | 5 monitor |
+#   +-----------+-----------+-----------+
+#   | 6 float   | 7 close   | 8 back    |    (unlit)
+#   +-----------+-----------+-----------+
+#     9 wrkspces  10 windows   11 monitors   (dials; 10 is the large one)
+#
+# The interval on these keys is how often the key is repainted from state this
+# daemon already holds in memory, not how often umbriel is asked anything - so
+# a second is cheap here in a way it would not be behind a polling client.
+
+# --- Row 1: where am I ------------------------------------------------------
+
+# Focused workspace: name on top, index in the middle, position in the list
+# underneath. Press to step to the next workspace on this output, wrapping past
+# the last one back to the first - which is what "ws-cycle" adds over umbriel's
+# own workspace-next, as that one stops at the end of the list.
+[[keys]]
+  index = 0
+  name = "workspace"
+  [keys.widget]
+    id = "umbriel"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["ws-name", "ws-idx", "ws-count"]
+      font = ["regular", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    umbriel = "ws-cycle"
+
+# Focused window: app id, title, and its position left to right in the
+# workspace - which is the readout for the large dial. Press to jump back to
+# the previously focused window.
+[[keys]]
+  index = 1
+  name = "window"
+  [keys.widget]
+    id = "umbriel"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["win-app", "win-title", "win-pos"]
+      font = ["regular", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    umbriel = "window-focus-last"
+
+# Overview. "Overview" is not the name of a field, so it is drawn as the
+# caption it looks like; the line below it comes off the event stream, so it
+# stays right when the overview is opened from a keybind instead. Press
+# toggles; hold always closes.
+[[keys]]
+  index = 2
+  name = "overview"
+  [keys.widget]
+    id = "umbriel"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["Overview", "overview"]
+      font = ["thin", "bold"]
+      color = ["#8899aa", "#ffffff"]
+  [keys.action]
+    umbriel = "overview-toggle"
+  [keys.action_hold]
+    umbriel = "overview-close"
+
+# --- Row 2: how this workspace is arranged ----------------------------------
+
+# The focused workspace's layout mode - scrolling, dwindle or master - and how
+# many windows are on it. Press cycles the mode, which is what umbriel's own
+# "toggle" argument does.
+[[keys]]
+  index = 3
+  name = "layout"
+  [keys.widget]
+    id = "umbriel"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["Layout", "ws-layout", "win-count"]
+      font = ["thin", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    umbriel = "workspace-set-layout:toggle"
+
+# How many windows are stashed in a scratchpad, or the placeholder when none
+# are. Press to show or hide them; hold to stash the focused window, which is
+# the other half of the same key.
+[[keys]]
+  index = 4
+  name = "scratchpad"
+  [keys.widget]
+    id = "umbriel"
+    interval = 1000
+    [keys.widget.config]
+      fields = ["Scratch", "scratchpad"]
+      font = ["thin", "bold"]
+      color = ["#8899aa", "#ffffff"]
+  [keys.action]
+    umbriel = "scratchpad-toggle"
+  [keys.action_hold]
+    umbriel = "window-toggle-scratchpad"
+
+# Focused output, and how many are connected. Press to move to the next
+# monitor - a silent no-op when this is the only one, rather than a process
+# spent per press to do nothing.
+[[keys]]
+  index = 5
+  name = "monitor"
+  [keys.widget]
+    id = "umbriel"
+    interval = 2000
+    [keys.widget.config]
+      fields = ["Monitor", "output", "output-count"]
+      font = ["thin", "bold", "thin"]
+      color = ["#8899aa", "#ffffff", "#8899aa"]
+  [keys.action]
+    umbriel = "mon-next"
+
+# --- Row 3: unlit buttons ---------------------------------------------------
+#
+# These three keys have no screen on the AKP03E, so the labels are only here to
+# document what they do.
+
+# Float or tile the focused window; hold to centre it once it is floating.
+[[keys]]
+  index = 6
+  name = "float"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Float"
+  [keys.action]
+    umbriel = "window-toggle-floating"
+  [keys.action_hold]
+    umbriel = "window-center"
+
+[[keys]]
+  index = 7
+  name = "close"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Close"
+  [keys.action]
+    umbriel = "window-close"
+
+# Back to whichever deck you keep as your main one.
+[[keys]]
+  index = 8
+  name = "back"
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Back"
+  [keys.action]
+    deck = "main.deck"
+
+# --- Dials ------------------------------------------------------------------
+
+# Left (small) dial: one workspace per detent, in the direction umbriel calls
+# previous/next. Press to jump back to the previous workspace.
+[[keys]]
+  index = 9
+  name = "dial-workspace"
+  [keys.action]
+    umbriel = "workspace-focus-last"
+  [keys.action_rotate_left]
+    umbriel = "ws-scroll -1"
+  [keys.action_rotate_right]
+    umbriel = "ws-scroll +1"
+
+# Large dial: step through the windows of the current workspace in layout
+# order, one per detent. Press to give the one you land on the full width of
+# the workspace.
+[[keys]]
+  index = 10
+  name = "dial-window"
+  [keys.action]
+    umbriel = "window-toggle-maximize"
+  [keys.action_rotate_left]
+    umbriel = "win-scroll -1"
+  [keys.action_rotate_right]
+    umbriel = "win-scroll +1"
+
+# Right (small) dial: step between monitors. Does nothing at all on a
+# single-output machine. Press to toggle the overview, which is the quickest
+# way to see where the focus went.
+[[keys]]
+  index = 11
+  name = "dial-monitor"
+  [keys.action]
+    umbriel = "overview-toggle"
+  [keys.action_rotate_left]
+    umbriel = "mon-scroll -1"
+  [keys.action_rotate_right]
+    umbriel = "mon-scroll +1"

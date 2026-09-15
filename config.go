@@ -43,6 +43,8 @@ type ActionConfig struct {
 	MediaPlayer string `toml:"media_player,omitempty" json:"media_player,omitempty"`
 	// A niri compositor command to perform (Linux only).
 	Niri string `toml:"niri,omitempty" json:"niri,omitempty"`
+	// An umbriel compositor command to perform (Linux only).
+	Umbriel string `toml:"umbriel,omitempty" json:"umbriel,omitempty"`
 }
 
 // WidgetConfig describes configuration data for widgets.
