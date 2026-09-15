@@ -547,6 +547,9 @@ func (d *Deck) runAction(dev *Device, a *ActionConfig) {
 	if a.Niri != "" {
 		errorLog(niriCommand(a.Niri), "failed to perform niri command '%s'", a.Niri)
 	}
+	if a.Umbriel != "" {
+		errorLog(umbrielCommand(a.Umbriel), "failed to perform umbriel command '%s'", a.Umbriel)
+	}
 	if a.Device != "" {
 		switch {
 		case a.Device == "sleep":

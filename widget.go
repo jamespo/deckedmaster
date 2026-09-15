@@ -201,6 +201,9 @@ func NewWidget(dev *Device, base string, kc KeyConfig, bg image.Image) (Widget, 
 
 	case "niri":
 		return NewNiriWidget(bw, kc.Widget)
+
+	case "umbriel":
+		return NewUmbrielWidget(bw, kc.Widget)
 	}
 
 	// unknown widget ID

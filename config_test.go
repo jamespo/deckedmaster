@@ -28,6 +28,7 @@ var widgetIDs = []string{
 	"time",
 	"timer",
 	"top",
+	"umbriel",
 	"weather",
 }
 

@@ -63,6 +63,7 @@ including using the left encoder to control the volume.
     - Media player controls (MPRIS/DBus)
     - Spotify
     - niri compositor state (Linux-only)
+    - umbriel compositor state (Linux-only)
 - Lets you trigger several actions:
     - Run commands
     - Emulate a key-press
@@ -70,6 +71,7 @@ including using the left encoder to control the volume.
     - Trigger a dbus call
     - Control media players
     - Drive the niri compositor (Linux-only)
+    - Drive the umbriel compositor (Linux-only)
 - REST based API:
     - Read and update device state like brightness and sleep/fade time.
     - Wake or put the device to sleep.
@@ -241,6 +243,35 @@ it comes up before niri has finished setting up. The unit also needs
 `$NIRI_SOCKET` in its environment, which `niri-session` arranges by importing
 niri's environment into the user session - check with
 `systemctl --user show-environment | grep NIRI_SOCKET` if keys stay blank.
+
+### Wayland / umbriel
+
+[umbriel](https://docs.noctalia.dev/umbriel/) is supported natively, through
+its own client: see the [umbriel widget](#umbriel-linux-only) for the state a
+key can show and [umbriel actions](#umbriel-compositor-actions-linux-only) for
+what a key can do. Like the niri support above, this needs no DBus service and
+no compositor-side script.
+
+Where niri has to be asked for its state, umbriel offers it. `umbriel
+subscribe` streams one JSON object per line, and each event is a full snapshot
+- sent as soon as the stream opens, and again whenever the thing it describes
+changes. deckedmaster keeps one such subscription open for as long as it runs
+and holds the latest snapshot in memory, so repainting a key reads a value that
+is already there and performs no IPC at all. A key's `interval` therefore
+decides how often it is repainted, not how often the compositor is asked
+anything.
+
+If the compositor goes away - a restart, or a session that has not come up yet
+- the subscription is reopened, backing off up to half a minute between
+attempts, and keys draw their placeholder until a fresh snapshot arrives rather
+than showing state left behind by a compositor that has since exited.
+
+The `umbriel` binary has to be on `$PATH`. It finds the compositor the way
+every other umbriel client does - `$UMBRIEL_SOCKET` when it is set, otherwise
+derived from `$WAYLAND_DISPLAY` - so there is no socket path to configure here.
+Running deckedmaster from a systemd user unit needs one of those two in the
+unit's environment; check with `systemctl --user show-environment | grep -E
+'UMBRIEL_SOCKET|WAYLAND_DISPLAY'` if keys stay blank.
 
 ## Usage
 
@@ -748,6 +779,65 @@ cache, so a key reflects a press on its very next refresh.
 See [decks/niri.deck](decks/niri.deck) for a complete deck built out of this
 widget and the actions below.
 
+#### Umbriel (Linux only)
+
+A widget that displays the state of the
+[umbriel](https://docs.noctalia.dev/umbriel/) Wayland compositor, one field per
+line:
+
+```toml
+[keys.widget]
+  id = "umbriel"
+  interval = 1000 # optional
+  [keys.widget.config]
+    fields = ["ws-name", "ws-idx", "ws-count"]
+    font = ["regular", "bold", "thin"] # optional
+    color = ["#8899aa", "#ffffff", "#8899aa"] # optional
+    layout = "0x0+72x20;0x20+72x52" # optional
+    width = 10 # optional
+    placeholder = "-" # optional
+```
+
+The fields a key can draw are:
+
+| Field | Shows |
+| --- | --- |
+| `ws-name` | focused workspace name, or `ws` if it has none |
+| `ws-idx` | focused workspace index |
+| `ws-count` | `<idx>/<total>` for the focused output |
+| `ws-layout` | the workspace's layout mode: `scrolling`, `dwindle` or `master` |
+| `win-app` | focused window's app id, last component only |
+| `win-title` | focused window's title |
+| `win-pos` | `<column>/<columns>` in the focused workspace |
+| `win-count` | `<n> win` on the focused workspace |
+| `win-float` | `float` or `tile` for the focused window |
+| `output` | focused output name |
+| `output-count` | `<n> mon` |
+| `overview` | `OPEN` or `closed` |
+| `submap` | the active keybind submap, or nothing in the default context |
+| `kb-layout` | the active keyboard layout |
+| `scratchpad` | how many windows are stashed in a scratchpad |
+
+Anything else in `fields` is drawn literally, which is how a key gets a static
+caption above a live value - `fields = ["Monitor", "output", "output-count"]`.
+
+`width` is the number of characters before a window title or workspace name is
+truncated; key screens are around 60 pixels wide, so a title that is not cut
+down renders as a smudge. `placeholder` is drawn in place of state umbriel does
+not have, e.g. the title of a window when nothing is focused, or `submap` while
+the session is in its default context.
+
+A note on which window these fields mean: umbriel marks one window per occupied
+workspace as focused - the one that would take the focus back if you switched
+to it - and exactly one window in the whole session as active. The `win-*`
+fields draw the active one, which is the window you are actually typing into.
+
+Every value comes off the event stream described under
+[Wayland / umbriel](#wayland--umbriel), so no process is forked to paint a key.
+
+See [decks/umbriel.deck](decks/umbriel.deck) for a complete deck built out of
+this widget and the actions below.
+
 ### Actions
 
 You can hook up any key with several actions. A regular keypress will trigger
@@ -932,6 +1022,39 @@ variant of niri's own `Action` enum:
 [keys.action]
   niri = '{"CloseWindow":{"id":42}}'
 ```
+
+#### Umbriel compositor actions (Linux only)
+
+Perform an action in the [umbriel](https://docs.noctalia.dev/umbriel/) Wayland
+compositor:
+
+```toml
+[keys.action]
+  umbriel = "window-toggle-maximize"
+```
+
+Any umbriel action is accepted, spelled the way `umbriel msg` spells it, with
+any argument after a colon - `workspace-switch:3`, `window-set-width:0.5`,
+`spawn:foot`. Run `umbriel msg --help` for the full list.
+
+On top of those, these commands do what a single umbriel action cannot:
+
+| Command | Does |
+| --- | --- |
+| `ws-cycle` | next workspace on this output, wrapping past the last back to the first |
+| `ws-scroll -1` / `+1` | one workspace back/forward, for a dial |
+| `win-scroll -1` / `+1` | one window back/forward in layout order, for a dial |
+| `mon-scroll -1` / `+1` | previous/next output, a no-op with a single output |
+| `mon-next` | next output, a no-op with a single output |
+
+`ws-cycle` exists because umbriel's own `workspace-next` stops at the end of
+the list, which is wrong for a key whose whole job is to cycle. The monitor
+commands do nothing at all on a single-output machine, rather than spending a
+process per detent of a dial that cannot go anywhere.
+
+Actions are sent with `umbriel msg`, one short-lived process per key press.
+Nothing is forked to draw a key - the state the keys show arrives on the event
+stream instead, as described under [Wayland / umbriel](#wayland--umbriel).
 
 ## Windows Support
 
