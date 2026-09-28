@@ -19,7 +19,7 @@ require (
 	github.com/jfreymuth/pulse v0.1.3
 	github.com/jub0bs/fcors v0.5.1
 	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8
-	github.com/lesismal/nbio v1.3.17
+	github.com/lesismal/nbio v1.7.0
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/muesli/streamdeck v0.4.0
@@ -46,7 +46,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
-	github.com/lesismal/llib v1.1.12 // indirect
+	github.com/lesismal/llib v1.2.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
