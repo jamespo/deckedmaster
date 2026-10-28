@@ -1,0 +1,9 @@
+# Configuration for poutine, the CI/CD supply chain scanner.
+# https://boostsecurityio.github.io/poutine/
+skip:
+  # golangci/golangci-lint-action is not published by a GitHub "verified
+  # creator", which this note-level rule flags. The action is pinned to a
+  # major tag and is the upstream-recommended way to run golangci-lint, so
+  # the finding is informational only.
+  - rule:
+      - github_action_from_unverified_creator_used
