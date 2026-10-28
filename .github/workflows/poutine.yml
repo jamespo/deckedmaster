@@ -1,0 +1,37 @@
+name: poutine
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so new rules and newly-disclosed build-component advisories are
+    # picked up even when the workflows themselves have not changed.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  poutine:
+    name: poutine
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # poutine scans the CI/CD configuration itself (workflow permissions,
+      # injection via untrusted PR input, unpinned/vulnerable actions, ...).
+      # Rule exclusions live in .poutine.yml.
+      - name: poutine - GitHub Actions SAST
+        uses: boostsecurityio/poutine-action@e240ebd3eff8b2db5a8e5f6b28f58739d7db2247 # v1.1.4
+
+      # Fork pull requests only get a read-only GITHUB_TOKEN, so the upload
+      # would fail there. The scan above still runs; its findings just are not
+      # published to code scanning for those PRs.
+      - name: Upload poutine SARIF file
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+          category: poutine
