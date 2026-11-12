@@ -269,9 +269,11 @@ than showing state left behind by a compositor that has since exited.
 The `umbriel` binary has to be on `$PATH`. It finds the compositor the way
 every other umbriel client does - `$UMBRIEL_SOCKET` when it is set, otherwise
 derived from `$WAYLAND_DISPLAY` - so there is no socket path to configure here.
-Running deckedmaster from a systemd user unit needs one of those two in the
-unit's environment; check with `systemctl --user show-environment | grep -E
-'UMBRIEL_SOCKET|WAYLAND_DISPLAY'` if keys stay blank.
+When neither is set, as happens to a systemd user unit that starts before the
+compositor has imported its environment into the user manager, deckedmaster
+finds the live `umbriel-*.sock` in `$XDG_RUNTIME_DIR` itself and passes it on.
+So keys start working as soon as the compositor is up, without restarting the
+daemon.
 
 ## Usage
 
