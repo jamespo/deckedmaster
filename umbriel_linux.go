@@ -50,12 +50,12 @@ const (
 	// no field reads would only add wakeups.
 	umbrielEvents = "windows,workspaces,overview,keyboard_layout,submap"
 
-	// umbrielRetryMin and umbrielRetryMax bound the wait before a stream that
+	// umbrielRetryFloor and umbrielRetryCeiling bound the wait before a stream that
 	// ended is reopened. A compositor that is restarting is back within a
 	// second or two; one that is not running at all should not be respawning a
 	// client process in a tight loop for the rest of the session.
-	umbrielRetryMin = time.Second
-	umbrielRetryMax = 30 * time.Second
+	umbrielRetryFloor   = time.Second
+	umbrielRetryCeiling = 30 * time.Second
 
 	// umbrielLineMax caps one line of the stream. The windows event carries
 	// every window's title, so bufio's default 64K limit is not the headroom it
@@ -150,11 +150,11 @@ var umbrielStart = sync.OnceFunc(func() {
 })
 
 // run keeps a subscription open, reopening it when it ends. The wait between
-// attempts backs off up to umbrielRetryMax so that running without umbriel -
+// attempts backs off up to umbrielRetryCeiling so that running without umbriel -
 // on a machine that has the binary but not the compositor, say - costs one
 // process every half minute rather than one per second.
 func (s *umbrielSnapshot) run() {
-	delay := umbrielRetryMin
+	delay := umbrielRetryFloor
 	for {
 		delivered, err := s.stream()
 		s.reset()
@@ -165,12 +165,12 @@ func (s *umbrielSnapshot) run() {
 		if delivered {
 			// the compositor was there and is only now gone, so come back
 			// promptly rather than at whatever the backoff had grown to
-			delay = umbrielRetryMin
+			delay = umbrielRetryFloor
 		}
 
 		time.Sleep(delay)
-		if delay < umbrielRetryMax {
-			delay = min(2*delay, umbrielRetryMax)
+		if delay < umbrielRetryCeiling {
+			delay = min(2*delay, umbrielRetryCeiling)
 		}
 	}
 }
@@ -766,7 +766,7 @@ func umbrielFindSocket(dir string) string {
 	}
 	candidates := make([]candidate, 0, len(matches))
 	for _, path := range matches {
-		info, err := os.Stat(path)
+		info, err := os.Stat(path) //nolint:gosec // G703: a glob match inside $XDG_RUNTIME_DIR, only stat-ed and dialled
 		if err != nil || info.Mode()&os.ModeSocket == 0 {
 			continue
 		}
