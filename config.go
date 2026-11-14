@@ -45,6 +45,10 @@ type ActionConfig struct {
 	Niri string `toml:"niri,omitempty" json:"niri,omitempty"`
 	// An umbriel compositor command to perform (Linux only).
 	Umbriel string `toml:"umbriel,omitempty" json:"umbriel,omitempty"`
+	// Alternative actions to perform instead when keyboard modifiers are held
+	// while the deck control is used, keyed by modifier combination like
+	// "super" or "ctrl+shift".
+	Modifiers map[string]*ActionConfig `toml:"modifiers,omitempty" json:"modifiers,omitempty"`
 }
 
 // WidgetConfig describes configuration data for widgets.
@@ -168,6 +172,9 @@ func LoadConfigFromFile(base, path string, files []string) (DeckConfig, error) {
 
 	if _, err = toml.Decode(string(file), &config); err != nil {
 		return config, err
+	}
+	if err = config.validateModifiers(); err != nil {
+		return config, fmt.Errorf("%s: %w", filename, err)
 	}
 	if config.Parent != "" {
 		parent, err := LoadConfigFromFile(base, config.Parent, append(files, filename))

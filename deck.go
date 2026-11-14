@@ -481,13 +481,19 @@ func (d *Deck) widget(key uint8) Widget {
 // triggerAction triggers an action.
 func (d *Deck) triggerAction(dev *Device, index uint8, hold bool) {
 	w := d.widget(index)
-	w.TriggerAction(hold)
 
 	var a *ActionConfig
 	if hold {
 		a = w.ActionHold()
 	} else {
 		a = w.Action()
+	}
+
+	// a modifier-specific action replaces the widget's built-in behavior too
+	// (e.g. toggling mute), so that it really is an extra action
+	a, modified := a.resolveModifiers()
+	if !modified {
+		w.TriggerAction(hold)
 	}
 	d.runAction(dev, a)
 }
@@ -506,6 +512,7 @@ func (d *Deck) triggerRotateAction(dev *Device, index uint8, delta int8) {
 	} else {
 		a = w.ActionRotateRight()
 	}
+	a, _ = a.resolveModifiers()
 	d.runAction(dev, a)
 }
 

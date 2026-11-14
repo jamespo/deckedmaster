@@ -1,0 +1,112 @@
+# Example deck demonstrating keyboard modifier actions.
+#
+# Hold one or more modifier keys (shift, ctrl, alt, super) on your regular
+# keyboard while pressing, holding or turning a deck control to run an extra
+# action instead of the normal one. Combinations are matched exactly; when
+# nothing matches, the normal action runs.
+#
+# Works on any streamdeck-style device: keys 0-5 exist on every supported
+# model. The rotary encoder at the bottom only does something on devices that
+# have one (e.g. the Ajazz AKP03E, where it is encoder 9).
+
+# A plain launcher: one key, four browser windows.
+[[keys]]
+  index = 0
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Browser"
+  [keys.action]
+    exec = "firefox"
+    [keys.action.modifiers.shift]
+      exec = "firefox --new-window"
+    [keys.action.modifiers.super]
+      exec = "firefox --private-window"
+    [keys.action.modifiers."ctrl+shift"]
+      exec = "firefox --new-window https://github.com/jamespo/deckedmaster"
+
+# A modifier action also replaces the widget's own behavior: a plain press
+# toggles mute, ctrl+press opens the mixer *without* toggling mute.
+[[keys]]
+  index = 1
+  [keys.widget]
+    id = "mute"
+  [keys.action]
+    [keys.action.modifiers.ctrl]
+      exec = "pavucontrol"
+
+# Modifiers work on long presses too. Short press: brightness up, long press:
+# brightness down. Add shift to jump straight to full/minimum brightness.
+[[keys]]
+  index = 2
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-more.png"
+      label = "Bright"
+  [keys.action]
+    device = "brightness+10"
+    [keys.action.modifiers.shift]
+      device = "brightness=100"
+  [keys.action_hold]
+    device = "brightness-10"
+    [keys.action_hold.modifiers.shift]
+      device = "brightness=10"
+
+# Modifiers held on your keyboard are still held while a keycode action is
+# emulated, so they combine with it: alt+press below sends alt+Right, not just
+# Right. Pick keycodes with that in mind.
+[[keys]]
+  index = 3
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-next.png"
+      label = "Next"
+  [keys.action]
+    keycode = "Right"
+    [keys.action.modifiers.ctrl]
+      keycode = "End"
+
+# Switch decks. A modifier action can be any action, including a deck switch.
+[[keys]]
+  index = 4
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      icon = "assets/go-previous.png"
+      label = "Decks"
+  [keys.action]
+    deck = "main.deck"
+    [keys.action.modifiers.super]
+      deck = "spotify.deck"
+
+# A key with only modifier actions does nothing on a plain press.
+[[keys]]
+  index = 5
+  [keys.widget]
+    id = "button"
+    [keys.widget.config]
+      label = "Sleep?"
+  [keys.action]
+    [keys.action.modifiers."ctrl+alt"]
+      device = "sleep"
+
+# Rotary encoder (Ajazz AKP03E): turn to change volume in 5% steps, hold shift
+# for fine 1% steps, ctrl to jump to 0%/100%.
+[[keys]]
+  index = 9
+  [keys.action]
+    keycode = "Mute"
+  [keys.action_rotate_left]
+    device = "volume-5"
+    [keys.action_rotate_left.modifiers.shift]
+      device = "volume-1"
+    [keys.action_rotate_left.modifiers.ctrl]
+      device = "volume=0"
+  [keys.action_rotate_right]
+    device = "volume+5"
+    [keys.action_rotate_right.modifiers.shift]
+      device = "volume+1"
+    [keys.action_rotate_right.modifiers.ctrl]
+      device = "volume=100"

@@ -532,6 +532,14 @@
           "type": "string",
           "x-go-name": "Paste"
         },
+        "modifiers": {
+          "description": "Alternative actions to perform instead when keyboard modifiers are held\nwhile the deck control is used, keyed by modifier combination like\n\"super\" or \"ctrl+shift\".",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ActionConfig"
+          },
+          "x-go-name": "Modifiers"
+        },
         "umbriel": {
           "description": "An umbriel compositor command to perform (Linux only).",
           "type": "string",

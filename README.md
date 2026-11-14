@@ -46,6 +46,7 @@ including using the left encoder to control the volume.
 - Background images, including per-key background colors
 - Brightness control
 - Supports different actions for short & long presses
+- Extra actions when keyboard modifiers (shift, ctrl, alt, super) are held
 - Automatically reloads a deck when its config file changes
 - Per-window key overrides (X11 or KWin)
 - Comes with a collection of widgets:
@@ -863,6 +864,53 @@ bind separate actions to turning them, independent of pressing them:
 `keys.action_rotate_right` once per detent turned clockwise. Since the
 encoders have no screen, a key bound this way usually has no `keys.widget`
 at all - see [decks/ajazz_akp03e.deck](decks/ajazz_akp03e.deck).
+
+#### Modifier actions
+
+Hold one or more modifier keys on your regular keyboard while using a deck
+control to run a different action. Every action slot (`keys.action`,
+`keys.action_hold`, `keys.action_rotate_left`, `keys.action_rotate_right`)
+takes a `modifiers` table, keyed by modifier combination:
+
+```toml
+[keys.action]
+  exec = "firefox"
+  [keys.action.modifiers.super]
+    exec = "firefox --private-window"
+  [keys.action.modifiers."ctrl+shift"]   # combinations need quotes
+    exec = "firefox --new-window https://github.com/jamespo/deckedmaster"
+```
+
+Any of the actions below can be used as a modifier action.
+
+- **Modifier names:** `shift`, `ctrl` (or `control`), `alt` and `super` (or
+  `meta`, `win`, `logo`). Names aren't case-sensitive, can be joined with `+`
+  or `-` in any order, and left and right keys count as the same modifier.
+- **Matching:** a combination only matches when exactly those modifiers are
+  held. If nothing matches (or no modifier is held), the normal action runs.
+  An action can consist of nothing but `modifiers`, in which case a plain
+  press does nothing.
+- **Built-in widget behavior is replaced:** when a modifier action runs, the
+  widget's own press behavior (toggling mute, starting a timer, ...) is
+  skipped.
+- **When modifiers are read:** for presses and holds, when you release the
+  deck key. For rotary encoders, on every detent.
+- **Emulated keys combine with held modifiers:** modifiers you are holding stay
+  held while a `keycode` action is emulated. For example, holding shift with
+  `keycode = "Leftctrl-V"` sends ctrl+shift+V.
+- **Unknown names are rejected:** an unknown modifier name, or two spellings
+  of the same combination, stops the deck from loading.
+
+On Linux, modifiers are read straight from the kernel's input devices, so this
+works the same on X11, any Wayland compositor and behind remappers like
+[keyd](https://github.com/rvaiya/keyd). Your user needs read access to
+`/dev/input/event*`, usually by being in the `input` group (`sudo usermod -aG
+input $USER`, then log in again). Without it, modifier actions are disabled and
+a warning is logged. If keyd turns a modifier into `oneshot()`, tapping it and
+then pressing a deck key also works, but keyd keeps the modifier latched until
+your next key press on the keyboard.
+
+See [decks/modifiers.deck](decks/modifiers.deck) for a complete example.
 
 #### Switch deck
 
