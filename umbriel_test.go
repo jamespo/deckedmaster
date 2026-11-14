@@ -4,6 +4,8 @@ package main
 
 import (
 	"encoding/json"
+	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -489,5 +491,71 @@ func TestUmbrielLiveState(t *testing.T) {
 	// be exercised live without moving anything.
 	if err := umbrielCommand("mon-scroll +1"); err != nil {
 		t.Errorf("mon-scroll on a single output failed: %v", err)
+	}
+}
+
+func TestUmbrielFindSocket(t *testing.T) {
+	dir := t.TempDir()
+
+	if got := umbrielFindSocket(dir); got != "" {
+		t.Fatalf("empty dir: got %q, want none", got)
+	}
+
+	// a regular file with the right name is not a socket
+	if err := os.WriteFile(filepath.Join(dir, "umbriel-wayland-9.sock"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	live := filepath.Join(dir, "umbriel-wayland-0.sock")
+	ln, err := net.Listen("unix", live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	// a socket left behind by a compositor that has since exited, and newer
+	// than the live one, which is the case a plain newest-wins would get wrong
+	stale := filepath.Join(dir, "umbriel-wayland-1.sock")
+	staleLn, err := net.Listen("unix", stale)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleLn.(*net.UnixListener).SetUnlinkOnClose(false)
+	staleLn.Close()
+	later := time.Now().Add(time.Minute)
+	if err := os.Chtimes(stale, later, later); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := umbrielFindSocket(dir); got != live {
+		t.Fatalf("got %q, want %q", got, live)
+	}
+	if got := umbrielFindSocket(""); got != "" {
+		t.Fatalf("no runtime dir: got %q, want none", got)
+	}
+}
+
+func TestUmbrielEnv(t *testing.T) {
+	dir := t.TempDir()
+	live := filepath.Join(dir, "umbriel-wayland-0.sock")
+	ln, err := net.Listen("unix", live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+
+	// the client can find the compositor itself: inherit our environment
+	t.Setenv("UMBRIEL_SOCKET", "")
+	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+	if env := umbrielEnv(); env != nil {
+		t.Fatalf("with WAYLAND_DISPLAY set: got an environment, want nil")
+	}
+
+	// started before the session imported its environment
+	t.Setenv("WAYLAND_DISPLAY", "")
+	env := umbrielEnv()
+	if !slices.Contains(env, "UMBRIEL_SOCKET="+live) {
+		t.Fatalf("without either variable: UMBRIEL_SOCKET=%s missing from the environment", live)
 	}
 }
