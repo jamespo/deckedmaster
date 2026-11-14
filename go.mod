@@ -1,6 +1,6 @@
 module github.com/jamespo/deckedmaster
 
-go 1.25.0
+go 1.26.0
 
 require (
 	fyne.io/systray v1.12.2
@@ -17,7 +17,7 @@ require (
 	github.com/jezek/xgb v1.3.1
 	github.com/jezek/xgbutil v0.0.0-20260124183602-9fd151d6a51a
 	github.com/jfreymuth/pulse v0.1.3
-	github.com/jub0bs/fcors v0.5.1
+	github.com/jub0bs/fcors v0.9.0
 	github.com/karalabe/hid v1.0.1-0.20190806082151-9c14560f9ee8
 	github.com/lesismal/nbio v1.3.17
 	github.com/lucasb-eyer/go-colorful v1.4.1
@@ -27,7 +27,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.9
 	github.com/tvidal-net/pulseaudio v0.0.0-20250620201345-9831624d251c
 	golang.org/x/image v0.45.0
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
@@ -60,11 +60,10 @@ require (
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -18,7 +18,10 @@ package main
 //
 // The subscriber finds the compositor the same way every other umbriel client
 // does - $UMBRIEL_SOCKET when it is set, otherwise derived from
-// $WAYLAND_DISPLAY - so there is no socket path to configure here.
+// $WAYLAND_DISPLAY - so there is no socket path to configure here. When
+// neither is set, which is what a systemd user unit started before the session
+// imported its environment gets, it looks for the socket itself: see
+// umbrielEnv.
 
 import (
 	"bufio"
@@ -26,8 +29,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,12 +50,12 @@ const (
 	// no field reads would only add wakeups.
 	umbrielEvents = "windows,workspaces,overview,keyboard_layout,submap"
 
-	// umbrielRetryMin and umbrielRetryMax bound the wait before a stream that
+	// umbrielRetryFloor and umbrielRetryCeiling bound the wait before a stream that
 	// ended is reopened. A compositor that is restarting is back within a
 	// second or two; one that is not running at all should not be respawning a
 	// client process in a tight loop for the rest of the session.
-	umbrielRetryMin = time.Second
-	umbrielRetryMax = 30 * time.Second
+	umbrielRetryFloor   = time.Second
+	umbrielRetryCeiling = 30 * time.Second
 
 	// umbrielLineMax caps one line of the stream. The windows event carries
 	// every window's title, so bufio's default 64K limit is not the headroom it
@@ -145,11 +150,11 @@ var umbrielStart = sync.OnceFunc(func() {
 })
 
 // run keeps a subscription open, reopening it when it ends. The wait between
-// attempts backs off up to umbrielRetryMax so that running without umbriel -
+// attempts backs off up to umbrielRetryCeiling so that running without umbriel -
 // on a machine that has the binary but not the compositor, say - costs one
 // process every half minute rather than one per second.
 func (s *umbrielSnapshot) run() {
-	delay := umbrielRetryMin
+	delay := umbrielRetryFloor
 	for {
 		delivered, err := s.stream()
 		s.reset()
@@ -160,12 +165,12 @@ func (s *umbrielSnapshot) run() {
 		if delivered {
 			// the compositor was there and is only now gone, so come back
 			// promptly rather than at whatever the backoff had grown to
-			delay = umbrielRetryMin
+			delay = umbrielRetryFloor
 		}
 
 		time.Sleep(delay)
-		if delay < umbrielRetryMax {
-			delay = min(2*delay, umbrielRetryMax)
+		if delay < umbrielRetryCeiling {
+			delay = min(2*delay, umbrielRetryCeiling)
 		}
 	}
 }
@@ -176,6 +181,7 @@ func (s *umbrielSnapshot) stream() (bool, error) {
 	// A fixed binary with a fixed argument, so there is nothing here for a deck
 	// to inject into: umbrielEvents is a constant.
 	cmd := exec.Command(umbrielBinary, "subscribe", umbrielEvents) //nolint:gosec // G204: constant command and arguments
+	cmd.Env = umbrielEnv()
 
 	// Its stderr is left unconnected on purpose. umbriel writes "cannot connect
 	// to umbriel socket" there and exits when no compositor is running, which
@@ -715,6 +721,72 @@ func (s *umbrielSnapshot) showScratchpad(int) (string, error) {
 	return strconv.Itoa(stashed), nil
 }
 
+// --- finding the compositor -------------------------------------------------
+
+// umbrielEnv returns the environment an umbriel client is run with: nil, which
+// inherits ours, whenever the client can find the compositor on its own, and
+// otherwise ours plus $UMBRIEL_SOCKET pointing at a socket found here.
+//
+// The client needs $UMBRIEL_SOCKET or $WAYLAND_DISPLAY, and a daemon started
+// by a systemd user unit - from a .path unit on the device appearing at login,
+// say - can easily come up before the compositor has imported either into the
+// user manager. Our environment is fixed at that point, so without this every
+// action fails with "cannot find umbriel socket" until the daemon is
+// restarted, even though the compositor came up seconds later. Looking it up
+// per client means the first press after the compositor is up just works.
+func umbrielEnv() []string {
+	if os.Getenv("UMBRIEL_SOCKET") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
+		return nil
+	}
+	socket := umbrielFindSocket(os.Getenv("XDG_RUNTIME_DIR"))
+	if socket == "" {
+		// nothing to point at: let the client report that the way it does
+		return nil
+	}
+	return append(os.Environ(), "UMBRIEL_SOCKET="+socket)
+}
+
+// umbrielFindSocket returns the IPC socket of a running compositor in dir,
+// where umbriel puts one per session as umbriel-<display>.sock, or "" when
+// there is none. A compositor that crashed leaves its socket behind, so the
+// newest one that still accepts a connection wins rather than simply the
+// newest.
+func umbrielFindSocket(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "umbriel-*.sock"))
+	if err != nil || len(matches) == 0 {
+		return ""
+	}
+
+	type candidate struct {
+		path    string
+		modTime time.Time
+	}
+	candidates := make([]candidate, 0, len(matches))
+	for _, path := range matches {
+		info, err := os.Stat(path) //nolint:gosec // G703: a glob match inside $XDG_RUNTIME_DIR, only stat-ed and dialled
+		if err != nil || info.Mode()&os.ModeSocket == 0 {
+			continue
+		}
+		candidates = append(candidates, candidate{path, info.ModTime()})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].modTime.After(candidates[j].modTime)
+	})
+
+	for _, c := range candidates {
+		conn, err := net.DialTimeout("unix", c.path, 200*time.Millisecond)
+		if err != nil {
+			continue
+		}
+		_ = conn.Close()
+		return c.path
+	}
+	return ""
+}
+
 // --- actions ----------------------------------------------------------------
 
 // umbrielCommand performs an "umbriel" action bound to a key. cmd is one of:
@@ -767,6 +839,7 @@ func umbrielAction(action ...string) error {
 	// and it is passed as arguments to a fixed binary rather than to a shell,
 	// so there is no command here for it to break out of.
 	cmd := exec.CommandContext(ctx, umbrielBinary, append([]string{"msg"}, action...)...) //nolint:gosec // G204: fixed binary, arguments are not shell-interpreted
+	cmd.Env = umbrielEnv()
 
 	// umbriel reports a rejected action on stderr ("error: unknown action: x")
 	// and exits non-zero, which is worth putting in the log as it stands.
